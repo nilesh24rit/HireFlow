@@ -28,3 +28,15 @@ The platform is organized into independent microservices:
 - **ai-service**: Resume parsing, skill extraction, candidate-job matching, and recommendation models.
 - **notification-service**: Event-driven alerts, messaging, and multi-channel notifications.
 - **analytics-service**: Recruitment metrics, funnel analytics, and hiring pipeline reporting.
+
+## Build
+
+Every service builds independently with Apache Maven. The build enforces JDK 25 or newer and Maven 3.9 or newer.
+
+```bash
+cd api-gateway
+mvn clean verify
+```
+
+Repeat the same command inside each service directory. Shared protobuf definitions live in `proto/` and are compiled into gRPC stubs during the build.
+
