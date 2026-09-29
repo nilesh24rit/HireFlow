@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package hireflow;
+
+option java_multiple_files = true;
+option java_package = "com.hireflow.proto";
+option java_outer_classname = "HireFlowProto";
+
+message Ping {
+  string message = 1;
+}
