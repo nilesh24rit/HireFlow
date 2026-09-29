@@ -19,6 +19,7 @@
 
     <properties>
         <java.version>25</java.version>
+        <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
         <springdoc.version>3.1.1</springdoc.version>
         <protobuf.version>4.33.0</protobuf.version>
         <grpc.version>1.76.0</grpc.version>
@@ -132,6 +133,31 @@
                             <goal>compile</goal>
                             <goal>compile-custom</goal>
                         </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>${maven-enforcer-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>enforce-build-environment</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireJavaVersion>
+                                    <version>[25,)</version>
+                                    <message>HireFlow services require JDK 25 or newer.</message>
+                                </requireJavaVersion>
+                                <requireMavenVersion>
+                                    <version>[3.9,)</version>
+                                    <message>HireFlow services require Maven 3.9 or newer.</message>
+                                </requireMavenVersion>
+                            </rules>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
