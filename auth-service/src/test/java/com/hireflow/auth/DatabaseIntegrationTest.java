@@ -67,6 +67,8 @@ class DatabaseIntegrationTest {
         assertThat(flyway.getConfiguration().getLocations())
                 .extracting(Object::toString)
                 .contains("classpath:db/migration");
-        assertThat(flyway.info().applied()).isEmpty();
+        assertThat(flyway.info().applied())
+                .extracting(applied -> applied.getVersion().toString())
+                .containsExactly("1");
     }
 }
