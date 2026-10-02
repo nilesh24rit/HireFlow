@@ -11,6 +11,7 @@ import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.junit.jupiter.Container;
@@ -45,6 +46,9 @@ class DatabaseIntegrationTest {
     @Autowired
     private Flyway flyway;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     @Test
     void connectsToServiceOwnedDatabase() throws SQLException {
         try (Connection connection = dataSource.getConnection()) {
@@ -67,6 +71,16 @@ class DatabaseIntegrationTest {
         assertThat(flyway.getConfiguration().getLocations())
                 .extracting(Object::toString)
                 .contains("classpath:db/migration");
-        assertThat(flyway.info().applied()).isEmpty();
+        assertThat(flyway.info().applied())
+                .extracting(applied -> applied.getVersion().toString())
+                .containsExactly("1", "2");
+    }
+
+    @Test
+    void migrationCreatesCandidateTables() {
+        Integer tables = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.tables WHERE table_name IN ('candidates', 'candidate_skills')",
+                Integer.class);
+        assertThat(tables).isEqualTo(2);
     }
 }
