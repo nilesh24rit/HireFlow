@@ -73,14 +73,14 @@ class DatabaseIntegrationTest {
                 .contains("classpath:db/migration");
         assertThat(flyway.info().applied())
                 .extracting(applied -> applied.getVersion().toString())
-                .containsExactly("1");
+                .containsExactly("1", "2");
     }
 
     @Test
-    void migrationCreatesJobsTable() {
+    void migrationCreatesJobTables() {
         Integer tables = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'jobs'",
+                "SELECT COUNT(*) FROM information_schema.tables WHERE table_name IN ('jobs', 'job_skills')",
                 Integer.class);
-        assertThat(tables).isEqualTo(1);
+        assertThat(tables).isEqualTo(2);
     }
 }
