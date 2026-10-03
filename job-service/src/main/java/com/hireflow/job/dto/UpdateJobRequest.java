@@ -14,14 +14,13 @@ import jakarta.validation.constraints.Size;
 
 @JobRangeValid
 @Schema(description = "Payload used to update a job posting; omitted fields are left unchanged")
+
 public record UpdateJobRequest(
-        @NotBlank(message = "title must not be blank")
         @Size(max = 200, message = "title must be at most 200 characters")
-        @Schema(description = "Job title")
+        @Schema(description = "Job title; omitted fields are left unchanged")
         String title,
-        @NotBlank(message = "description must not be blank")
         @Size(max = 10000, message = "description must be at most 10000 characters")
-        @Schema(description = "Full job description")
+        @Schema(description = "Full job description; omitted fields are left unchanged")
         String description,
         @Size(max = 200, message = "location must be at most 200 characters")
         @Schema(description = "Primary work location")

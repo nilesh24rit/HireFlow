@@ -267,6 +267,22 @@ class JobServiceTest {
     }
 
     @Test
+    void rejectsBlankTitleOnUpdate() {
+        UUID id = UUID.randomUUID();
+        Job job = job(id);
+        when(jobRepository.findById(id)).thenReturn(Optional.of(job));
+
+        UpdateJobRequest request = new UpdateJobRequest(
+                "   ", null, null, null, null, null, null, null, null, null);
+
+        assertThatThrownBy(() -> jobService.updateJob(id, request))
+                .isInstanceOf(JobValidationException.class)
+                .hasMessageContaining("title");
+
+        verify(jobRepository, never()).saveAndFlush(any(Job.class));
+    }
+
+    @Test
     void throwsWhenUpdatingMissingJob() {
         UUID id = UUID.randomUUID();
         when(jobRepository.findById(id)).thenReturn(Optional.empty());

@@ -43,7 +43,7 @@ public class JobService {
         job.setSalaryMin(request.salaryMin());
         job.setSalaryMax(request.salaryMax());
         job.setStatus(request.status() != null ? request.status() : JobStatus.DRAFT);
-        assertValidRanges(job);
+        assertValidJob(job);
 
         Job saved = jobRepository.saveAndFlush(job);
         saveSkills(saved.getId(), request.skills());
@@ -92,7 +92,7 @@ public class JobService {
         if (request.status() != null) {
             job.setStatus(request.status());
         }
-        assertValidRanges(job);
+        assertValidJob(job);
         if (request.skills() != null) {
             replaceSkills(id, request.skills());
         }
@@ -109,7 +109,13 @@ public class JobService {
                 .orElseThrow(() -> new JobNotFoundException("No job found with id '" + id + "'"));
     }
 
-    private void assertValidRanges(Job job) {
+    private void assertValidJob(Job job) {
+        if (job.getTitle() == null || job.getTitle().isBlank()) {
+            throw new JobValidationException("title must not be blank");
+        }
+        if (job.getDescription() == null || job.getDescription().isBlank()) {
+            throw new JobValidationException("description must not be blank");
+        }
         if (job.getExperienceMin() != null && job.getExperienceMax() != null
                 && job.getExperienceMin() > job.getExperienceMax()) {
             throw new JobValidationException("experienceMin must be less than or equal to experienceMax");
