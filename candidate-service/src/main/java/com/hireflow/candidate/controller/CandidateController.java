@@ -24,6 +24,8 @@ import com.hireflow.candidate.service.CandidateService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -44,7 +46,8 @@ public class CandidateController {
     @Operation(summary = "Create a candidate profile",
             description = "Creates a candidate profile for a user. Each user may own at most one candidate profile.")
     @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "Candidate created"),
+            @ApiResponse(responseCode = "201", description = "Candidate created",
+                    content = @Content(schema = @Schema(implementation = CandidateResponse.class))),
             @ApiResponse(responseCode = "400", description = "Invalid request payload"),
             @ApiResponse(responseCode = "409", description = "A candidate profile already exists for the user")})
     public ResponseEntity<CandidateResponse> createCandidate(
@@ -60,7 +63,8 @@ public class CandidateController {
     @Operation(summary = "Get a candidate by id",
             description = "Returns the candidate profile identified by the given UUID, including its skills.")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Candidate found"),
+            @ApiResponse(responseCode = "200", description = "Candidate found",
+                    content = @Content(schema = @Schema(implementation = CandidateResponse.class))),
             @ApiResponse(responseCode = "400", description = "Malformed candidate id"),
             @ApiResponse(responseCode = "404", description = "Candidate not found")})
     public CandidateResponse getCandidateById(
@@ -72,7 +76,8 @@ public class CandidateController {
     @Operation(summary = "Get a candidate by user id",
             description = "Returns the candidate profile owned by the given user, if one exists.")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Candidate found"),
+            @ApiResponse(responseCode = "200", description = "Candidate found",
+                    content = @Content(schema = @Schema(implementation = CandidateResponse.class))),
             @ApiResponse(responseCode = "400", description = "Malformed user id"),
             @ApiResponse(responseCode = "404", description = "No candidate exists for the user")})
     public CandidateResponse getCandidateByUserId(
@@ -85,7 +90,8 @@ public class CandidateController {
             description = "Updates the candidate profile. Omitted or null fields are left unchanged. "
                     + "When skills are supplied, they replace the current skill set.")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Candidate updated"),
+            @ApiResponse(responseCode = "200", description = "Candidate updated",
+                    content = @Content(schema = @Schema(implementation = CandidateResponse.class))),
             @ApiResponse(responseCode = "400", description = "Invalid request payload"),
             @ApiResponse(responseCode = "404", description = "Candidate not found")})
     public CandidateResponse updateCandidate(

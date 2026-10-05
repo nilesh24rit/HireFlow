@@ -25,6 +25,9 @@ import com.hireflow.application.service.ApplicationService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -47,7 +50,8 @@ public class ApplicationController {
                     + "The application always starts with the APPLIED status and a candidate "
                     + "may only apply to the same job once.")
     @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "Application created"),
+            @ApiResponse(responseCode = "201", description = "Application created",
+                    content = @Content(schema = @Schema(implementation = ApplicationResponse.class))),
             @ApiResponse(responseCode = "400", description = "Invalid request payload"),
             @ApiResponse(responseCode = "409", description = "Candidate already applied to the job")})
     public ResponseEntity<ApplicationResponse> createApplication(
@@ -63,7 +67,8 @@ public class ApplicationController {
     @Operation(summary = "Get an application by id",
             description = "Returns the application identified by the given UUID.")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Application found"),
+            @ApiResponse(responseCode = "200", description = "Application found",
+                    content = @Content(schema = @Schema(implementation = ApplicationResponse.class))),
             @ApiResponse(responseCode = "400", description = "Malformed application id"),
             @ApiResponse(responseCode = "404", description = "Application not found")})
     public ApplicationResponse getApplicationById(
@@ -76,7 +81,8 @@ public class ApplicationController {
             description = "Returns all applications submitted by the given candidate. "
                     + "The list is empty when the candidate has not applied to any job.")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Applications found (possibly an empty list)"),
+            @ApiResponse(responseCode = "200", description = "Applications found (possibly an empty list)",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = ApplicationResponse.class)))),
             @ApiResponse(responseCode = "400", description = "Malformed candidate id")})
     public List<ApplicationResponse> getApplicationsByCandidateId(
             @Parameter(description = "UUID of the candidate") @PathVariable UUID candidateId) {
@@ -88,7 +94,8 @@ public class ApplicationController {
             description = "Returns all applications received by the given job. "
                     + "The list is empty when the job has received no applications.")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Applications found (possibly an empty list)"),
+            @ApiResponse(responseCode = "200", description = "Applications found (possibly an empty list)",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = ApplicationResponse.class)))),
             @ApiResponse(responseCode = "400", description = "Malformed job id")})
     public List<ApplicationResponse> getApplicationsByJobId(
             @Parameter(description = "UUID of the job") @PathVariable UUID jobId) {
@@ -99,7 +106,8 @@ public class ApplicationController {
     @Operation(summary = "Update an application status",
             description = "Moves the application to the supplied status, for example UNDER_REVIEW or HIRED.")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Status updated"),
+            @ApiResponse(responseCode = "200", description = "Status updated",
+                    content = @Content(schema = @Schema(implementation = ApplicationResponse.class))),
             @ApiResponse(responseCode = "400", description = "Missing, unknown or invalid status"),
             @ApiResponse(responseCode = "404", description = "Application not found")})
     public ApplicationResponse updateApplicationStatus(

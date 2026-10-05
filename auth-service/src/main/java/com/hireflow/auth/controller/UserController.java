@@ -24,6 +24,8 @@ import com.hireflow.auth.service.UserService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -43,7 +45,8 @@ public class UserController {
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Create a user", description = "Registers a new user with a unique email address.")
     @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "User created"),
+            @ApiResponse(responseCode = "201", description = "User created",
+                    content = @Content(schema = @Schema(implementation = UserResponse.class))),
             @ApiResponse(responseCode = "400", description = "Invalid request payload"),
             @ApiResponse(responseCode = "409", description = "Email is already registered")})
     public ResponseEntity<UserResponse> createUser(@Valid @RequestBody CreateUserRequest request) {
@@ -57,7 +60,8 @@ public class UserController {
     @GetMapping("/{id}")
     @Operation(summary = "Get a user by id", description = "Returns the user identified by the given UUID.")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "User found"),
+            @ApiResponse(responseCode = "200", description = "User found",
+                    content = @Content(schema = @Schema(implementation = UserResponse.class))),
             @ApiResponse(responseCode = "400", description = "Malformed user id"),
             @ApiResponse(responseCode = "404", description = "User not found")})
     public UserResponse getUserById(
@@ -68,7 +72,8 @@ public class UserController {
     @GetMapping("/email/{email}")
     @Operation(summary = "Get a user by email", description = "Returns the user registered with the given email address.")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "User found"),
+            @ApiResponse(responseCode = "200", description = "User found",
+                    content = @Content(schema = @Schema(implementation = UserResponse.class))),
             @ApiResponse(responseCode = "404", description = "User not found")})
     public UserResponse getUserByEmail(
             @Parameter(description = "Email address of the user") @PathVariable String email) {
@@ -79,7 +84,8 @@ public class UserController {
     @Operation(summary = "Update a user", description = "Updates the user's profile information. "
             + "Security-sensitive fields such as email, role and enabled are not accepted by this endpoint.")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "User updated"),
+            @ApiResponse(responseCode = "200", description = "User updated",
+                    content = @Content(schema = @Schema(implementation = UserResponse.class))),
             @ApiResponse(responseCode = "400", description = "Invalid request payload"),
             @ApiResponse(responseCode = "404", description = "User not found")})
     public UserResponse updateUser(

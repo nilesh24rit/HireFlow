@@ -25,6 +25,9 @@ import com.hireflow.job.service.JobService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -46,7 +49,8 @@ public class JobController {
             description = "Creates a job posting owned by a recruiter. Skills are normalized and stored. "
                     + "When no status is supplied the job starts as DRAFT.")
     @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "Job created"),
+            @ApiResponse(responseCode = "201", description = "Job created",
+                    content = @Content(schema = @Schema(implementation = JobResponse.class))),
             @ApiResponse(responseCode = "400", description = "Invalid request payload"),
             @ApiResponse(responseCode = "409", description = "Duplicate skill submitted for the job")})
     public ResponseEntity<JobResponse> createJob(@Valid @RequestBody CreateJobRequest request) {
@@ -61,7 +65,8 @@ public class JobController {
     @Operation(summary = "Get a job by id",
             description = "Returns the job identified by the given UUID, including its skills.")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Job found"),
+            @ApiResponse(responseCode = "200", description = "Job found",
+                    content = @Content(schema = @Schema(implementation = JobResponse.class))),
             @ApiResponse(responseCode = "400", description = "Malformed job id"),
             @ApiResponse(responseCode = "404", description = "Job not found")})
     public JobResponse getJobById(
@@ -73,7 +78,8 @@ public class JobController {
     @Operation(summary = "Get jobs by recruiter id",
             description = "Returns all jobs owned by the given recruiter. The list is empty when the recruiter owns no jobs.")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Jobs found (possibly an empty list)"),
+            @ApiResponse(responseCode = "200", description = "Jobs found (possibly an empty list)",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = JobResponse.class)))),
             @ApiResponse(responseCode = "400", description = "Malformed recruiter id")})
     public List<JobResponse> getJobsByRecruiterId(
             @Parameter(description = "UUID of the owning recruiter") @PathVariable UUID recruiterId) {
@@ -85,7 +91,8 @@ public class JobController {
             description = "Updates the job. Omitted or null fields are left unchanged. "
                     + "When skills are supplied, they replace the current skill set.")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Job updated"),
+            @ApiResponse(responseCode = "200", description = "Job updated",
+                    content = @Content(schema = @Schema(implementation = JobResponse.class))),
             @ApiResponse(responseCode = "400", description = "Invalid request payload"),
             @ApiResponse(responseCode = "404", description = "Job not found"),
             @ApiResponse(responseCode = "409", description = "Duplicate skill submitted for the job")})
