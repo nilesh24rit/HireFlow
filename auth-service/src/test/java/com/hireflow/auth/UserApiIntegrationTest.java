@@ -1,5 +1,6 @@
 package com.hireflow.auth;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 
@@ -11,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.context.WebApplicationContext;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -19,6 +21,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 import com.hireflow.auth.entity.User;
 import com.hireflow.auth.entity.UserRole;
 import com.hireflow.auth.repository.UserRepository;
+import com.jayway.jsonpath.JsonPath;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -28,6 +31,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
@@ -82,6 +86,66 @@ class UserApiIntegrationTest {
                 .andExpect(jsonPath("$.enabled").value(true))
                 .andExpect(jsonPath("$.createdAt").exists())
                 .andExpect(jsonPath("$.updatedAt").exists());
+    }
+
+    @Test
+    void returnsLocationHeaderOnCreate() throws Exception {
+        String email = "location-" + UUID.randomUUID() + "@example.com";
+
+        MvcResult result = mockMvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createUserBody(email, "Jane", "Doe", "CANDIDATE"))
+                        .with(user("api-test"))
+                        .with(csrf()))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String body = result.getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String location = result.getResponse().getHeader("Location");
+        assertThat(location).endsWith("/api/users/" + JsonPath.read(body, "$.id"));
+    }
+
+    @Test
+    void returnsJsonContentTypeOnGetUser() throws Exception {
+        User user = seedUser("content-type-" + UUID.randomUUID() + "@example.com", UserRole.CANDIDATE);
+
+        mockMvc.perform(get("/api/users/{id}", user.getId()).with(user("api-test")))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+    }
+
+    @Test
+    void rejectsNonJsonCreatePayload() throws Exception {
+        mockMvc.perform(post("/api/users")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("not json")
+                        .with(user("api-test"))
+                        .with(csrf()))
+                .andExpect(status().isUnsupportedMediaType());
+    }
+
+    @Test
+    void returnsBadRequestForMalformedUserId() throws Exception {
+        mockMvc.perform(get("/api/users/{id}", "not-a-uuid").with(user("api-test")))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void returnsBadRequestForMalformedUserIdOnUpdate() throws Exception {
+        mockMvc.perform(put("/api/users/{id}", "not-a-uuid")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"firstName\":\"Janet\",\"lastName\":\"Smith\"}")
+                        .with(user("api-test"))
+                        .with(csrf()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void returnsBadRequestForMalformedUserIdOnDelete() throws Exception {
+        mockMvc.perform(delete("/api/users/{id}", "not-a-uuid")
+                        .with(user("api-test"))
+                        .with(csrf()))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

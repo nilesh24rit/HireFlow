@@ -1,7 +1,7 @@
 package com.hireflow.candidate;
 
+import java.time.Duration;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
@@ -22,6 +22,7 @@ import com.hireflow.candidate.repository.CandidateSkillRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.within;
 
 @Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest
@@ -138,8 +139,9 @@ class CandidatePersistenceIntegrationTest {
         Candidate reloaded = candidateRepository.findById(saved.getId()).orElseThrow();
         assertThat(reloaded.getHeadline()).isEqualTo("Staff Engineer");
         assertThat(reloaded.getUpdatedAt()).isAfter(agedTimestamp);
-        assertThat(reloaded.getCreatedAt().truncatedTo(ChronoUnit.MICROS))
-                .isEqualTo(saved.getCreatedAt().truncatedTo(ChronoUnit.MICROS));
+        // Postgres stores microseconds while Instant keeps nanos, so allow a sub-microsecond difference.
+        assertThat(reloaded.getCreatedAt())
+                .isCloseTo(saved.getCreatedAt(), within(Duration.ofNanos(1000)));
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.hireflow.job;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 
@@ -11,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.context.WebApplicationContext;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -22,6 +24,7 @@ import com.hireflow.job.entity.JobSkill;
 import com.hireflow.job.entity.JobStatus;
 import com.hireflow.job.repository.JobRepository;
 import com.hireflow.job.repository.JobSkillRepository;
+import com.jayway.jsonpath.JsonPath;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -29,6 +32,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
@@ -91,6 +95,29 @@ class JobApiIntegrationTest {
     }
 
     @Test
+    void returnsLocationHeaderOnCreate() throws Exception {
+        UUID recruiterId = UUID.randomUUID();
+
+        MvcResult result = mockMvc.perform(post("/api/jobs")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createBody(recruiterId)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String body = result.getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String location = result.getResponse().getHeader("Location");
+        assertThat(location).endsWith("/api/jobs/" + JsonPath.read(body, "$.id"));
+    }
+
+    @Test
+    void rejectsNonJsonCreatePayload() throws Exception {
+        mockMvc.perform(post("/api/jobs")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("not json"))
+                .andExpect(status().isUnsupportedMediaType());
+    }
+
+    @Test
     void rejectsInvalidCreatePayloads() throws Exception {
         List<String> invalidPayloads = List.of(
                 "{\"title\":\"Missing recruiter\",\"description\":\"Description\",\"employmentType\":\"FULL_TIME\"}",
@@ -126,6 +153,7 @@ class JobApiIntegrationTest {
 
         mockMvc.perform(get("/api/jobs/{id}", job.getId()))
                 .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").value(job.getId().toString()))
                 .andExpect(jsonPath("$.title").value("Senior Java Developer"))
                 .andExpect(jsonPath("$.status").value("OPEN"))

@@ -1,5 +1,6 @@
 package com.hireflow.application;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 
@@ -11,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.context.WebApplicationContext;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -19,6 +21,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 import com.hireflow.application.entity.Application;
 import com.hireflow.application.entity.ApplicationStatus;
 import com.hireflow.application.repository.ApplicationRepository;
+import com.jayway.jsonpath.JsonPath;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -26,6 +29,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
@@ -76,6 +80,30 @@ class ApplicationApiIntegrationTest {
                 .andExpect(jsonPath("$.coverLetter").value("I would love to work on this role"))
                 .andExpect(jsonPath("$.appliedAt").exists())
                 .andExpect(jsonPath("$.updatedAt").exists());
+    }
+
+    @Test
+    void returnsLocationHeaderOnCreate() throws Exception {
+        UUID candidateId = UUID.randomUUID();
+        UUID jobId = UUID.randomUUID();
+
+        MvcResult result = mockMvc.perform(post("/api/applications")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createBody(candidateId, jobId)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String body = result.getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String location = result.getResponse().getHeader("Location");
+        assertThat(location).endsWith("/api/applications/" + JsonPath.read(body, "$.id"));
+    }
+
+    @Test
+    void rejectsNonJsonCreatePayload() throws Exception {
+        mockMvc.perform(post("/api/applications")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("not json"))
+                .andExpect(status().isUnsupportedMediaType());
     }
 
     @Test
@@ -130,6 +158,7 @@ class ApplicationApiIntegrationTest {
 
         mockMvc.perform(get("/api/applications/{id}", application.getId()))
                 .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").value(application.getId().toString()))
                 .andExpect(jsonPath("$.status").value("APPLIED"))
                 .andExpect(jsonPath("$.coverLetter").value("I would love to work on this role"));
@@ -144,6 +173,14 @@ class ApplicationApiIntegrationTest {
     @Test
     void returnsBadRequestForMalformedApplicationId() throws Exception {
         mockMvc.perform(get("/api/applications/{id}", "not-a-uuid"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void returnsBadRequestForMalformedIdOnStatusUpdate() throws Exception {
+        mockMvc.perform(patch("/api/applications/{id}/status", "not-a-uuid")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"UNDER_REVIEW\"}"))
                 .andExpect(status().isBadRequest());
     }
 

@@ -1,5 +1,6 @@
 package com.hireflow.candidate;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 
@@ -11,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.context.WebApplicationContext;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -20,12 +22,14 @@ import com.hireflow.candidate.entity.Candidate;
 import com.hireflow.candidate.entity.CandidateSkill;
 import com.hireflow.candidate.repository.CandidateRepository;
 import com.hireflow.candidate.repository.CandidateSkillRepository;
+import com.jayway.jsonpath.JsonPath;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
@@ -83,6 +87,41 @@ class CandidateApiIntegrationTest {
     }
 
     @Test
+    void returnsLocationHeaderOnCreate() throws Exception {
+        UUID userId = UUID.randomUUID();
+
+        MvcResult result = mockMvc.perform(post("/api/candidates")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createBody(userId)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        String body = result.getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String location = result.getResponse().getHeader("Location");
+        assertThat(location).endsWith("/api/candidates/" + JsonPath.read(body, "$.id"));
+    }
+
+    @Test
+    void rejectsNonJsonCreatePayload() throws Exception {
+        mockMvc.perform(post("/api/candidates")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("not json"))
+                .andExpect(status().isUnsupportedMediaType());
+    }
+
+    @Test
+    void returnsBadRequestForMalformedCandidateId() throws Exception {
+        mockMvc.perform(get("/api/candidates/{id}", "not-a-uuid"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void returnsBadRequestForMalformedUserIdLookup() throws Exception {
+        mockMvc.perform(get("/api/candidates/user/{userId}", "not-a-uuid"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void rejectsDuplicateCandidateForSameUser() throws Exception {
         UUID userId = UUID.randomUUID();
         seedCandidate(userId);
@@ -116,6 +155,7 @@ class CandidateApiIntegrationTest {
 
         mockMvc.perform(get("/api/candidates/{id}", candidate.getId()))
                 .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").value(candidate.getId().toString()))
                 .andExpect(jsonPath("$.headline").value("Senior Java Developer"))
                 .andExpect(jsonPath("$.skills[0]").value("Java"))
