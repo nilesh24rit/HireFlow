@@ -3,6 +3,7 @@ package com.hireflow.candidate.controller;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,7 +27,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/api/candidates")
+@RequestMapping(value = "/api/candidates", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Candidates", description = "Candidate profile management for the candidate service")
 public class CandidateController {
 
@@ -36,7 +37,7 @@ public class CandidateController {
         this.candidateService = candidateService;
     }
 
-    @PostMapping
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Create a candidate profile",
             description = "Creates a candidate profile for a user. Each user may own at most one candidate profile.")
@@ -72,7 +73,7 @@ public class CandidateController {
         return candidateService.getCandidateByUserId(userId);
     }
 
-    @PutMapping("/{id}")
+    @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Update a candidate profile",
             description = "Updates the candidate profile. Omitted or null fields are left unchanged. "
                     + "When skills are supplied, they replace the current skill set.")

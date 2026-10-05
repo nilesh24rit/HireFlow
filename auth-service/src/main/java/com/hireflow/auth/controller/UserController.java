@@ -3,6 +3,7 @@ package com.hireflow.auth.controller;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,7 +27,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping(value = "/api/users", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Users", description = "User profile management for the auth service")
 public class UserController {
 
@@ -36,7 +37,7 @@ public class UserController {
         this.userService = userService;
     }
 
-    @PostMapping
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Create a user", description = "Registers a new user with a unique email address.")
     @ApiResponses({
@@ -58,7 +59,7 @@ public class UserController {
         return userService.getUserById(id);
     }
 
-    @GetMapping("/by-email/{email}")
+    @GetMapping("/email/{email}")
     @Operation(summary = "Get a user by email", description = "Returns the user registered with the given email address.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "User found"),
@@ -68,7 +69,7 @@ public class UserController {
         return userService.getUserByEmail(email);
     }
 
-    @PutMapping("/{id}")
+    @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Update a user", description = "Updates the user's profile information. "
             + "Security-sensitive fields such as email, role and enabled are not accepted by this endpoint.")
     @ApiResponses({

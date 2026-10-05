@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,7 +28,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/api/jobs")
+@RequestMapping(value = "/api/jobs", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Jobs", description = "Job requisition lifecycle management for the job service")
 public class JobController {
 
@@ -37,7 +38,7 @@ public class JobController {
         this.jobService = jobService;
     }
 
-    @PostMapping
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Create a job",
             description = "Creates a job posting owned by a recruiter. Skills are normalized and stored. "
@@ -73,7 +74,7 @@ public class JobController {
         return jobService.getJobsByRecruiterId(recruiterId);
     }
 
-    @PutMapping("/{id}")
+    @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Update a job",
             description = "Updates the job. Omitted or null fields are left unchanged. "
                     + "When skills are supplied, they replace the current skill set.")

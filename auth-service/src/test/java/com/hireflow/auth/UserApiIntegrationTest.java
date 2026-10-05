@@ -138,7 +138,7 @@ class UserApiIntegrationTest {
     void getUserByEmail() throws Exception {
         User user = seedUser("get-by-email-" + UUID.randomUUID() + "@example.com", UserRole.RECRUITER);
 
-        mockMvc.perform(get("/api/users/by-email/{email}", user.getEmail()).with(user("api-test")))
+        mockMvc.perform(get("/api/users/email/{email}", user.getEmail()).with(user("api-test")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(user.getId().toString()))
                 .andExpect(jsonPath("$.firstName").value("Jane"))
@@ -147,7 +147,7 @@ class UserApiIntegrationTest {
 
     @Test
     void returnsNotFoundForUnknownUserEmail() throws Exception {
-        mockMvc.perform(get("/api/users/by-email/{email}", "missing-" + UUID.randomUUID() + "@example.com")
+        mockMvc.perform(get("/api/users/email/{email}", "missing-" + UUID.randomUUID() + "@example.com")
                         .with(user("api-test")))
                 .andExpect(status().isNotFound());
     }

@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -27,7 +28,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/api/applications")
+@RequestMapping(value = "/api/applications", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Applications", description = "Candidate job application lifecycle for the application service")
 public class ApplicationController {
 
@@ -37,7 +38,7 @@ public class ApplicationController {
         this.applicationService = applicationService;
     }
 
-    @PostMapping
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Create an application",
             description = "Submits an application for a candidate to a job. "
@@ -87,7 +88,7 @@ public class ApplicationController {
         return applicationService.getApplicationsByJobId(jobId);
     }
 
-    @PatchMapping("/{id}/status")
+    @PatchMapping(value = "/{id}/status", consumes = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Update an application status",
             description = "Moves the application to the supplied status, for example UNDER_REVIEW or HIRED.")
     @ApiResponses({
