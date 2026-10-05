@@ -95,6 +95,24 @@ class CandidateRequestValidationTest {
     }
 
     @Test
+    void rejectsOverlongSkill() {
+        CreateCandidateRequest request = new CreateCandidateRequest(
+                UUID.randomUUID(), null, null, null, null, null, null, null, null, null,
+                List.of("x".repeat(101)));
+
+        assertThat(violatedProperties(request)).anyMatch(path -> path.startsWith("skills"));
+    }
+
+    @Test
+    void rejectsOverlongResumeUrl() {
+        CreateCandidateRequest request = new CreateCandidateRequest(
+                UUID.randomUUID(), null, null, null, null, null, null,
+                "https://example.com/" + "a".repeat(500), null, null, null);
+
+        assertThat(violatedProperties(request)).contains("resumeUrl");
+    }
+
+    @Test
     void acceptsValidUpdateCandidateRequest() {
         UpdateCandidateRequest request = new UpdateCandidateRequest(
                 "Staff Engineer", "Experienced backend engineer", "Munich", 7, "Acme", "Principal Engineer",

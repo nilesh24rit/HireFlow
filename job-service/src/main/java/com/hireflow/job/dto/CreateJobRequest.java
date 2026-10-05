@@ -53,6 +53,7 @@ public record CreateJobRequest(
         @Schema(description = "Initial job status; defaults to DRAFT when omitted", example = "DRAFT")
         JobStatus status,
         @Schema(description = "Skills required for the job")
-        List<@NotBlank(message = "skill must not be blank") String> skills)
+        List<@NotBlank(message = "skill must not be blank")
+        @Size(max = 100, message = "skill must be at most 100 characters") String> skills)
         implements JobRanges {
 }

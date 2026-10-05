@@ -66,6 +66,30 @@ class UserRequestValidationTest {
     }
 
     @Test
+    void rejectsOverlongEmail() {
+        CreateUserRequest request = new CreateUserRequest(
+                "a".repeat(309) + "@example.com", "Jane", "Doe", UserRole.CANDIDATE);
+
+        assertThat(violatedProperties(request)).contains("email");
+    }
+
+    @Test
+    void rejectsOverlongFirstName() {
+        CreateUserRequest request = new CreateUserRequest(
+                "jane@example.com", "x".repeat(101), "Doe", UserRole.CANDIDATE);
+
+        assertThat(violatedProperties(request)).contains("firstName");
+    }
+
+    @Test
+    void rejectsOverlongLastName() {
+        CreateUserRequest request = new CreateUserRequest(
+                "jane@example.com", "Jane", "x".repeat(101), UserRole.CANDIDATE);
+
+        assertThat(violatedProperties(request)).contains("lastName");
+    }
+
+    @Test
     void acceptsValidUpdateUserRequest() {
         UpdateUserRequest request = new UpdateUserRequest("Janet", "Smith");
 
@@ -75,6 +99,13 @@ class UserRequestValidationTest {
     @Test
     void rejectsBlankFieldsOnUpdateUserRequest() {
         UpdateUserRequest request = new UpdateUserRequest(" ", null);
+
+        assertThat(violatedProperties(request)).contains("firstName", "lastName");
+    }
+
+    @Test
+    void rejectsOverlongNamesOnUpdateUserRequest() {
+        UpdateUserRequest request = new UpdateUserRequest("x".repeat(101), "x".repeat(101));
 
         assertThat(violatedProperties(request)).contains("firstName", "lastName");
     }

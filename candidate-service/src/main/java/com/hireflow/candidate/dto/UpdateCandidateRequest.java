@@ -22,10 +22,14 @@ public record UpdateCandidateRequest(
         @Size(max = 200, message = "currentJobTitle must be at most 200 characters")
         String currentJobTitle,
         @URL(regexp = "^https?://.+", message = "resumeUrl must be a valid URL")
+        @Size(max = 500, message = "resumeUrl must be at most 500 characters")
         String resumeUrl,
         @URL(regexp = "^https?://.+", message = "linkedinUrl must be a valid URL")
+        @Size(max = 500, message = "linkedinUrl must be at most 500 characters")
         String linkedinUrl,
         @URL(regexp = "^https?://.+", message = "githubUrl must be a valid URL")
+        @Size(max = 500, message = "githubUrl must be at most 500 characters")
         String githubUrl,
-        List<@NotBlank(message = "skill must not be blank") String> skills) {
+        List<@NotBlank(message = "skill must not be blank")
+        @Size(max = 100, message = "skill must be at most 100 characters") String> skills) {
 }

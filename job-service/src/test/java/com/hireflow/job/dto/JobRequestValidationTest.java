@@ -122,6 +122,15 @@ class JobRequestValidationTest {
     }
 
     @Test
+    void rejectsOverlongSkill() {
+        CreateJobRequest request = new CreateJobRequest(
+                UUID.randomUUID(), "Title", "Description", null, EmploymentType.FULL_TIME,
+                null, null, null, null, null, List.of("x".repeat(101)));
+
+        assertThat(violatedProperties(request)).anyMatch(path -> path.startsWith("skills"));
+    }
+
+    @Test
     void acceptsValidUpdateJobRequest() {
         UpdateJobRequest request = new UpdateJobRequest(
                 "Staff Java Developer", "Updated description", "Munich", EmploymentType.CONTRACT,

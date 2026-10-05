@@ -42,6 +42,7 @@ public record UpdateJobRequest(
         @Schema(description = "Job status")
         JobStatus status,
         @Schema(description = "Replaces the current skill set when supplied")
-        List<@NotBlank(message = "skill must not be blank") String> skills)
+        List<@NotBlank(message = "skill must not be blank")
+        @Size(max = 100, message = "skill must be at most 100 characters") String> skills)
         implements JobRanges {
 }
