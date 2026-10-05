@@ -1,10 +1,12 @@
 package com.hireflow.application.controller;
 
+import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import com.hireflow.application.dto.ApplicationResponse;
 import com.hireflow.application.dto.CreateApplicationRequest;
@@ -39,7 +42,6 @@ public class ApplicationController {
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-    @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Create an application",
             description = "Submits an application for a candidate to a job. "
                     + "The application always starts with the APPLIED status and a candidate "
@@ -48,8 +50,13 @@ public class ApplicationController {
             @ApiResponse(responseCode = "201", description = "Application created"),
             @ApiResponse(responseCode = "400", description = "Invalid request payload"),
             @ApiResponse(responseCode = "409", description = "Candidate already applied to the job")})
-    public ApplicationResponse createApplication(@Valid @RequestBody CreateApplicationRequest request) {
-        return applicationService.createApplication(request);
+    public ResponseEntity<ApplicationResponse> createApplication(
+            @Valid @RequestBody CreateApplicationRequest request) {
+        ApplicationResponse created = applicationService.createApplication(request);
+        URI location = ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}")
+                .buildAndExpand(created.id())
+                .toUri();
+        return ResponseEntity.created(location).body(created);
     }
 
     @GetMapping("/{id}")

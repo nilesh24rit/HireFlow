@@ -1,9 +1,11 @@
 package com.hireflow.candidate.controller;
 
+import java.net.URI;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -13,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import com.hireflow.candidate.dto.CandidateResponse;
 import com.hireflow.candidate.dto.CreateCandidateRequest;
@@ -38,15 +41,19 @@ public class CandidateController {
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-    @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Create a candidate profile",
             description = "Creates a candidate profile for a user. Each user may own at most one candidate profile.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Candidate created"),
             @ApiResponse(responseCode = "400", description = "Invalid request payload"),
             @ApiResponse(responseCode = "409", description = "A candidate profile already exists for the user")})
-    public CandidateResponse createCandidate(@Valid @RequestBody CreateCandidateRequest request) {
-        return candidateService.createCandidate(request);
+    public ResponseEntity<CandidateResponse> createCandidate(
+            @Valid @RequestBody CreateCandidateRequest request) {
+        CandidateResponse created = candidateService.createCandidate(request);
+        URI location = ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}")
+                .buildAndExpand(created.id())
+                .toUri();
+        return ResponseEntity.created(location).body(created);
     }
 
     @GetMapping("/{id}")
