@@ -17,9 +17,9 @@ import com.hireflow.application.dto.CreateApplicationRequest;
 import com.hireflow.application.dto.UpdateApplicationStatusRequest;
 import com.hireflow.application.entity.Application;
 import com.hireflow.application.entity.ApplicationStatus;
-import com.hireflow.application.exception.ApplicationNotFoundException;
-import com.hireflow.application.exception.ApplicationValidationException;
-import com.hireflow.application.exception.DuplicateApplicationException;
+import com.hireflow.application.exception.DuplicateResourceException;
+import com.hireflow.application.exception.InvalidRequestException;
+import com.hireflow.application.exception.ResourceNotFoundException;
 import com.hireflow.application.repository.ApplicationRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -68,7 +68,7 @@ class ApplicationServiceTest {
         when(applicationRepository.existsByCandidateIdAndJobId(candidateId, jobId)).thenReturn(true);
 
         assertThatThrownBy(() -> applicationService.createApplication(request))
-                .isInstanceOf(DuplicateApplicationException.class)
+                .isInstanceOf(DuplicateResourceException.class)
                 .hasMessageContaining(candidateId.toString())
                 .hasMessageContaining(jobId.toString());
 
@@ -85,7 +85,7 @@ class ApplicationServiceTest {
                 .thenThrow(new DataIntegrityViolationException("uk_applications_candidate_job"));
 
         assertThatThrownBy(() -> applicationService.createApplication(request))
-                .isInstanceOf(DuplicateApplicationException.class);
+                .isInstanceOf(DuplicateResourceException.class);
     }
 
     @Test
@@ -94,10 +94,10 @@ class ApplicationServiceTest {
         CreateApplicationRequest missingJob = new CreateApplicationRequest(UUID.randomUUID(), null, null);
 
         assertThatThrownBy(() -> applicationService.createApplication(missingCandidate))
-                .isInstanceOf(ApplicationValidationException.class)
+                .isInstanceOf(InvalidRequestException.class)
                 .hasMessageContaining("candidateId");
         assertThatThrownBy(() -> applicationService.createApplication(missingJob))
-                .isInstanceOf(ApplicationValidationException.class)
+                .isInstanceOf(InvalidRequestException.class)
                 .hasMessageContaining("jobId");
 
         verify(applicationRepository, never()).saveAndFlush(any(Application.class));
@@ -121,7 +121,7 @@ class ApplicationServiceTest {
         when(applicationRepository.findById(id)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> applicationService.getApplicationById(id))
-                .isInstanceOf(ApplicationNotFoundException.class)
+                .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining(id.toString());
     }
 
@@ -197,7 +197,7 @@ class ApplicationServiceTest {
 
         assertThatThrownBy(() -> applicationService.updateApplicationStatus(
                 id, new UpdateApplicationStatusRequest(null)))
-                .isInstanceOf(ApplicationValidationException.class)
+                .isInstanceOf(InvalidRequestException.class)
                 .hasMessageContaining("status");
 
         verify(applicationRepository, never()).findById(id);
@@ -210,7 +210,7 @@ class ApplicationServiceTest {
 
         assertThatThrownBy(() -> applicationService.updateApplicationStatus(
                 id, new UpdateApplicationStatusRequest(ApplicationStatus.REJECTED)))
-                .isInstanceOf(ApplicationNotFoundException.class)
+                .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining(id.toString());
 
         verify(applicationRepository, never()).saveAndFlush(any(Application.class));
@@ -233,7 +233,7 @@ class ApplicationServiceTest {
         when(applicationRepository.findById(id)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> applicationService.deleteApplication(id))
-                .isInstanceOf(ApplicationNotFoundException.class)
+                .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining(id.toString());
 
         verify(applicationRepository, never()).delete(any(Application.class));

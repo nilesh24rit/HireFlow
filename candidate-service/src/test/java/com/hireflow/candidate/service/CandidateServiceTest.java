@@ -19,8 +19,8 @@ import com.hireflow.candidate.dto.UpdateCandidateRequest;
 import com.hireflow.candidate.dto.CandidateResponse;
 import com.hireflow.candidate.entity.Candidate;
 import com.hireflow.candidate.entity.CandidateSkill;
-import com.hireflow.candidate.exception.CandidateNotFoundException;
-import com.hireflow.candidate.exception.DuplicateCandidateException;
+import com.hireflow.candidate.exception.DuplicateResourceException;
+import com.hireflow.candidate.exception.ResourceNotFoundException;
 import com.hireflow.candidate.repository.CandidateRepository;
 import com.hireflow.candidate.repository.CandidateSkillRepository;
 
@@ -109,7 +109,7 @@ class CandidateServiceTest {
         when(candidateRepository.existsByUserId(userId)).thenReturn(true);
 
         assertThatThrownBy(() -> candidateService.createCandidate(request))
-                .isInstanceOf(DuplicateCandidateException.class)
+                .isInstanceOf(DuplicateResourceException.class)
                 .hasMessageContaining(userId.toString());
 
         verify(candidateRepository, never()).saveAndFlush(any(Candidate.class));
@@ -124,7 +124,7 @@ class CandidateServiceTest {
                 .thenThrow(new DataIntegrityViolationException("uk_candidates_user_id"));
 
         assertThatThrownBy(() -> candidateService.createCandidate(request))
-                .isInstanceOf(DuplicateCandidateException.class)
+                .isInstanceOf(DuplicateResourceException.class)
                 .hasMessageContaining(userId.toString());
     }
 
@@ -149,7 +149,7 @@ class CandidateServiceTest {
         when(candidateRepository.findById(id)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> candidateService.getCandidateById(id))
-                .isInstanceOf(CandidateNotFoundException.class)
+                .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining(id.toString());
     }
 
@@ -172,7 +172,7 @@ class CandidateServiceTest {
         when(candidateRepository.findByUserId(userId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> candidateService.getCandidateByUserId(userId))
-                .isInstanceOf(CandidateNotFoundException.class)
+                .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining(userId.toString());
     }
 
@@ -247,7 +247,7 @@ class CandidateServiceTest {
                 "Staff Engineer", null, null, null, null, null, null, null, null, null);
 
         assertThatThrownBy(() -> candidateService.updateCandidate(id, request))
-                .isInstanceOf(CandidateNotFoundException.class)
+                .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining(id.toString());
     }
 
@@ -268,7 +268,7 @@ class CandidateServiceTest {
         when(candidateRepository.findById(id)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> candidateService.deleteCandidate(id))
-                .isInstanceOf(CandidateNotFoundException.class)
+                .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining(id.toString());
         verify(candidateRepository, never()).delete(any(Candidate.class));
     }

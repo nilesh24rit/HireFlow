@@ -14,13 +14,13 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 @RestControllerAdvice
 public class CandidateExceptionHandler {
 
-    @ExceptionHandler(CandidateNotFoundException.class)
-    public ResponseEntity<ProblemDetail> handleCandidateNotFound(CandidateNotFoundException ex) {
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ProblemDetail> handleResourceNotFound(ResourceNotFoundException ex) {
         return problem(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
-    @ExceptionHandler(DuplicateCandidateException.class)
-    public ResponseEntity<ProblemDetail> handleDuplicateCandidate(DuplicateCandidateException ex) {
+    @ExceptionHandler(DuplicateResourceException.class)
+    public ResponseEntity<ProblemDetail> handleDuplicateResource(DuplicateResourceException ex) {
         return problem(HttpStatus.CONFLICT, ex.getMessage());
     }
 

@@ -22,9 +22,9 @@ import com.hireflow.job.entity.EmploymentType;
 import com.hireflow.job.entity.Job;
 import com.hireflow.job.entity.JobSkill;
 import com.hireflow.job.entity.JobStatus;
-import com.hireflow.job.exception.DuplicateJobSkillException;
-import com.hireflow.job.exception.JobNotFoundException;
-import com.hireflow.job.exception.JobValidationException;
+import com.hireflow.job.exception.DuplicateResourceException;
+import com.hireflow.job.exception.InvalidRequestException;
+import com.hireflow.job.exception.ResourceNotFoundException;
 import com.hireflow.job.repository.JobRepository;
 import com.hireflow.job.repository.JobSkillRepository;
 
@@ -125,7 +125,7 @@ class JobServiceTest {
                 "Berlin", EmploymentType.FULL_TIME, 10, 5, null, null, null, null);
 
         assertThatThrownBy(() -> jobService.createJob(request))
-                .isInstanceOf(JobValidationException.class)
+                .isInstanceOf(InvalidRequestException.class)
                 .hasMessageContaining("experienceMin");
 
         verify(jobRepository, never()).saveAndFlush(any(Job.class));
@@ -152,7 +152,7 @@ class JobServiceTest {
         when(jobRepository.findById(id)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> jobService.getJobById(id))
-                .isInstanceOf(JobNotFoundException.class)
+                .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining(id.toString());
     }
 
@@ -260,7 +260,7 @@ class JobServiceTest {
                 null, null, null, null, 10, null, null, null, null, null);
 
         assertThatThrownBy(() -> jobService.updateJob(id, request))
-                .isInstanceOf(JobValidationException.class)
+                .isInstanceOf(InvalidRequestException.class)
                 .hasMessageContaining("experienceMin");
 
         verify(jobRepository, never()).saveAndFlush(any(Job.class));
@@ -276,7 +276,7 @@ class JobServiceTest {
                 "   ", null, null, null, null, null, null, null, null, null);
 
         assertThatThrownBy(() -> jobService.updateJob(id, request))
-                .isInstanceOf(JobValidationException.class)
+                .isInstanceOf(InvalidRequestException.class)
                 .hasMessageContaining("title");
 
         verify(jobRepository, never()).saveAndFlush(any(Job.class));
@@ -291,7 +291,7 @@ class JobServiceTest {
                 "Staff Engineer", null, null, null, null, null, null, null, null, null);
 
         assertThatThrownBy(() -> jobService.updateJob(id, request))
-                .isInstanceOf(JobNotFoundException.class)
+                .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining(id.toString());
     }
 
@@ -312,13 +312,13 @@ class JobServiceTest {
         when(jobRepository.findById(id)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> jobService.deleteJob(id))
-                .isInstanceOf(JobNotFoundException.class)
+                .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining(id.toString());
         verify(jobRepository, never()).delete(any(Job.class));
     }
 
     @Test
-    void convertsDuplicateSkillViolationIntoDuplicateJobSkillException() {
+    void convertsDuplicateSkillViolationIntoDuplicateResourceException() {
         UUID recruiterId = UUID.randomUUID();
         CreateJobRequest request = createRequest(recruiterId, List.of("Java"));
         stubSavedJob();
@@ -326,7 +326,7 @@ class JobServiceTest {
                 .thenThrow(new DataIntegrityViolationException("uk_job_skills_job_skill"));
 
         assertThatThrownBy(() -> jobService.createJob(request))
-                .isInstanceOf(DuplicateJobSkillException.class);
+                .isInstanceOf(DuplicateResourceException.class);
     }
 
     private void stubSavedJob() {

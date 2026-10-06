@@ -17,18 +17,18 @@ import tools.jackson.databind.exc.InvalidFormatException;
 @RestControllerAdvice
 public class ApplicationExceptionHandler {
 
-    @ExceptionHandler(ApplicationNotFoundException.class)
-    public ResponseEntity<ProblemDetail> handleApplicationNotFound(ApplicationNotFoundException ex) {
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ProblemDetail> handleResourceNotFound(ResourceNotFoundException ex) {
         return problem(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
-    @ExceptionHandler(DuplicateApplicationException.class)
-    public ResponseEntity<ProblemDetail> handleDuplicateApplication(DuplicateApplicationException ex) {
+    @ExceptionHandler(DuplicateResourceException.class)
+    public ResponseEntity<ProblemDetail> handleDuplicateResource(DuplicateResourceException ex) {
         return problem(HttpStatus.CONFLICT, ex.getMessage());
     }
 
-    @ExceptionHandler(ApplicationValidationException.class)
-    public ResponseEntity<ProblemDetail> handleApplicationValidation(ApplicationValidationException ex) {
+    @ExceptionHandler(InvalidRequestException.class)
+    public ResponseEntity<ProblemDetail> handleInvalidRequest(InvalidRequestException ex) {
         return problem(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 

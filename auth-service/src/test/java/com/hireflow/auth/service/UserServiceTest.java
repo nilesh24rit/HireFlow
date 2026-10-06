@@ -15,8 +15,8 @@ import com.hireflow.auth.dto.UpdateUserRequest;
 import com.hireflow.auth.dto.UserResponse;
 import com.hireflow.auth.entity.User;
 import com.hireflow.auth.entity.UserRole;
-import com.hireflow.auth.exception.DuplicateUserException;
-import com.hireflow.auth.exception.UserNotFoundException;
+import com.hireflow.auth.exception.DuplicateResourceException;
+import com.hireflow.auth.exception.ResourceNotFoundException;
 import com.hireflow.auth.repository.UserRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -62,7 +62,7 @@ class UserServiceTest {
         when(userRepository.existsByEmail("jane@example.com")).thenReturn(true);
 
         assertThatThrownBy(() -> userService.createUser(request))
-                .isInstanceOf(DuplicateUserException.class)
+                .isInstanceOf(DuplicateResourceException.class)
                 .hasMessageContaining("jane@example.com");
 
         verify(userRepository, never()).saveAndFlush(any(User.class));
@@ -76,7 +76,7 @@ class UserServiceTest {
                 .thenThrow(new DataIntegrityViolationException("uk_users_email"));
 
         assertThatThrownBy(() -> userService.createUser(request))
-                .isInstanceOf(DuplicateUserException.class)
+                .isInstanceOf(DuplicateResourceException.class)
                 .hasMessageContaining("jane@example.com");
     }
 
@@ -98,7 +98,7 @@ class UserServiceTest {
         when(userRepository.findById(id)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> userService.getUserById(id))
-                .isInstanceOf(UserNotFoundException.class)
+                .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining(id.toString());
     }
 
@@ -118,7 +118,7 @@ class UserServiceTest {
         when(userRepository.findByEmail("missing@example.com")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> userService.getUserByEmail("missing@example.com"))
-                .isInstanceOf(UserNotFoundException.class)
+                .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("missing@example.com");
     }
 
@@ -143,7 +143,7 @@ class UserServiceTest {
         when(userRepository.findById(id)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> userService.updateUser(id, new UpdateUserRequest("Janet", "Smith")))
-                .isInstanceOf(UserNotFoundException.class);
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 
     @Test
@@ -162,7 +162,7 @@ class UserServiceTest {
         UUID id = UUID.randomUUID();
         when(userRepository.findById(id)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> userService.deleteUser(id)).isInstanceOf(UserNotFoundException.class);
+        assertThatThrownBy(() -> userService.deleteUser(id)).isInstanceOf(ResourceNotFoundException.class);
         verify(userRepository, never()).delete(any(User.class));
     }
 

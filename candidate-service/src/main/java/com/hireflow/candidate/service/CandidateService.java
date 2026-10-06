@@ -15,8 +15,8 @@ import com.hireflow.candidate.dto.CreateCandidateRequest;
 import com.hireflow.candidate.dto.UpdateCandidateRequest;
 import com.hireflow.candidate.entity.Candidate;
 import com.hireflow.candidate.entity.CandidateSkill;
-import com.hireflow.candidate.exception.CandidateNotFoundException;
-import com.hireflow.candidate.exception.DuplicateCandidateException;
+import com.hireflow.candidate.exception.DuplicateResourceException;
+import com.hireflow.candidate.exception.ResourceNotFoundException;
 import com.hireflow.candidate.repository.CandidateRepository;
 import com.hireflow.candidate.repository.CandidateSkillRepository;
 
@@ -67,7 +67,7 @@ public class CandidateService {
     @Transactional(readOnly = true)
     public CandidateResponse getCandidateByUserId(UUID userId) {
         Candidate candidate = candidateRepository.findByUserId(userId)
-                .orElseThrow(() -> new CandidateNotFoundException(
+                .orElseThrow(() -> new ResourceNotFoundException(
                         "No candidate found for user '" + userId + "'"));
         return toResponse(candidate);
     }
@@ -116,7 +116,7 @@ public class CandidateService {
 
     private Candidate findCandidate(UUID id) {
         return candidateRepository.findById(id)
-                .orElseThrow(() -> new CandidateNotFoundException("No candidate found with id '" + id + "'"));
+                .orElseThrow(() -> new ResourceNotFoundException("No candidate found with id '" + id + "'"));
     }
 
     private void saveSkills(UUID candidateId, List<String> skills) {
@@ -162,8 +162,8 @@ public class CandidateService {
         return candidateSkill;
     }
 
-    private DuplicateCandidateException duplicateCandidate(UUID userId) {
-        return new DuplicateCandidateException("A candidate profile already exists for user '" + userId + "'");
+    private DuplicateResourceException duplicateCandidate(UUID userId) {
+        return new DuplicateResourceException("A candidate profile already exists for user '" + userId + "'");
     }
 
     private CandidateResponse toResponse(Candidate candidate) {

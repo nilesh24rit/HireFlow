@@ -10,8 +10,8 @@ import com.hireflow.auth.dto.CreateUserRequest;
 import com.hireflow.auth.dto.UpdateUserRequest;
 import com.hireflow.auth.dto.UserResponse;
 import com.hireflow.auth.entity.User;
-import com.hireflow.auth.exception.DuplicateUserException;
-import com.hireflow.auth.exception.UserNotFoundException;
+import com.hireflow.auth.exception.DuplicateResourceException;
+import com.hireflow.auth.exception.ResourceNotFoundException;
 import com.hireflow.auth.repository.UserRepository;
 
 @Service
@@ -48,7 +48,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public UserResponse getUserByEmail(String email) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UserNotFoundException("No user found with email '" + email + "'"));
+                .orElseThrow(() -> new ResourceNotFoundException("No user found with email '" + email + "'"));
         return toResponse(user);
     }
 
@@ -68,11 +68,11 @@ public class UserService {
 
     private User findUser(UUID id) {
         return userRepository.findById(id)
-                .orElseThrow(() -> new UserNotFoundException("No user found with id '" + id + "'"));
+                .orElseThrow(() -> new ResourceNotFoundException("No user found with id '" + id + "'"));
     }
 
-    private DuplicateUserException duplicateEmail(String email) {
-        return new DuplicateUserException("A user with email '" + email + "' already exists");
+    private DuplicateResourceException duplicateEmail(String email) {
+        return new DuplicateResourceException("A user with email '" + email + "' already exists");
     }
 
     private UserResponse toResponse(User user) {

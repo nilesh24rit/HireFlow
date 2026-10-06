@@ -14,18 +14,18 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 @RestControllerAdvice
 public class JobExceptionHandler {
 
-    @ExceptionHandler(JobNotFoundException.class)
-    public ResponseEntity<ProblemDetail> handleJobNotFound(JobNotFoundException ex) {
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ProblemDetail> handleResourceNotFound(ResourceNotFoundException ex) {
         return problem(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
-    @ExceptionHandler(DuplicateJobSkillException.class)
-    public ResponseEntity<ProblemDetail> handleDuplicateJobSkill(DuplicateJobSkillException ex) {
+    @ExceptionHandler(DuplicateResourceException.class)
+    public ResponseEntity<ProblemDetail> handleDuplicateResource(DuplicateResourceException ex) {
         return problem(HttpStatus.CONFLICT, ex.getMessage());
     }
 
-    @ExceptionHandler(JobValidationException.class)
-    public ResponseEntity<ProblemDetail> handleJobValidation(JobValidationException ex) {
+    @ExceptionHandler(InvalidRequestException.class)
+    public ResponseEntity<ProblemDetail> handleInvalidRequest(InvalidRequestException ex) {
         return problem(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 

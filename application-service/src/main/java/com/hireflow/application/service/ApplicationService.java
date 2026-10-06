@@ -12,9 +12,9 @@ import com.hireflow.application.dto.CreateApplicationRequest;
 import com.hireflow.application.dto.UpdateApplicationStatusRequest;
 import com.hireflow.application.entity.Application;
 import com.hireflow.application.entity.ApplicationStatus;
-import com.hireflow.application.exception.ApplicationNotFoundException;
-import com.hireflow.application.exception.ApplicationValidationException;
-import com.hireflow.application.exception.DuplicateApplicationException;
+import com.hireflow.application.exception.DuplicateResourceException;
+import com.hireflow.application.exception.InvalidRequestException;
+import com.hireflow.application.exception.ResourceNotFoundException;
 import com.hireflow.application.repository.ApplicationRepository;
 
 @Service
@@ -29,7 +29,7 @@ public class ApplicationService {
     @Transactional
     public ApplicationResponse createApplication(CreateApplicationRequest request) {
         if (request.candidateId() == null || request.jobId() == null) {
-            throw new ApplicationValidationException("candidateId and jobId must not be null");
+            throw new InvalidRequestException("candidateId and jobId must not be null");
         }
         if (applicationRepository.existsByCandidateIdAndJobId(request.candidateId(), request.jobId())) {
             throw duplicateApplication(request.candidateId(), request.jobId());
@@ -72,7 +72,7 @@ public class ApplicationService {
     @Transactional
     public ApplicationResponse updateApplicationStatus(UUID id, UpdateApplicationStatusRequest request) {
         if (request.status() == null) {
-            throw new ApplicationValidationException("status must not be null");
+            throw new InvalidRequestException("status must not be null");
         }
         Application application = findApplication(id);
         application.setStatus(request.status());
@@ -86,12 +86,12 @@ public class ApplicationService {
 
     private Application findApplication(UUID id) {
         return applicationRepository.findById(id)
-                .orElseThrow(() -> new ApplicationNotFoundException(
+                .orElseThrow(() -> new ResourceNotFoundException(
                         "No application found with id '" + id + "'"));
     }
 
-    private DuplicateApplicationException duplicateApplication(UUID candidateId, UUID jobId) {
-        return new DuplicateApplicationException(
+    private DuplicateResourceException duplicateApplication(UUID candidateId, UUID jobId) {
+        return new DuplicateResourceException(
                 "Candidate '" + candidateId + "' has already applied to job '" + jobId + "'");
     }
 

@@ -13,9 +13,9 @@ import com.hireflow.job.dto.UpdateJobRequest;
 import com.hireflow.job.entity.Job;
 import com.hireflow.job.entity.JobSkill;
 import com.hireflow.job.entity.JobStatus;
-import com.hireflow.job.exception.DuplicateJobSkillException;
-import com.hireflow.job.exception.JobNotFoundException;
-import com.hireflow.job.exception.JobValidationException;
+import com.hireflow.job.exception.DuplicateResourceException;
+import com.hireflow.job.exception.InvalidRequestException;
+import com.hireflow.job.exception.ResourceNotFoundException;
 import com.hireflow.job.repository.JobRepository;
 import com.hireflow.job.repository.JobSkillRepository;
 
@@ -106,23 +106,23 @@ public class JobService {
 
     private Job findJob(UUID id) {
         return jobRepository.findById(id)
-                .orElseThrow(() -> new JobNotFoundException("No job found with id '" + id + "'"));
+                .orElseThrow(() -> new ResourceNotFoundException("No job found with id '" + id + "'"));
     }
 
     private void assertValidJob(Job job) {
         if (job.getTitle() == null || job.getTitle().isBlank()) {
-            throw new JobValidationException("title must not be blank");
+            throw new InvalidRequestException("title must not be blank");
         }
         if (job.getDescription() == null || job.getDescription().isBlank()) {
-            throw new JobValidationException("description must not be blank");
+            throw new InvalidRequestException("description must not be blank");
         }
         if (job.getExperienceMin() != null && job.getExperienceMax() != null
                 && job.getExperienceMin() > job.getExperienceMax()) {
-            throw new JobValidationException("experienceMin must be less than or equal to experienceMax");
+            throw new InvalidRequestException("experienceMin must be less than or equal to experienceMax");
         }
         if (job.getSalaryMin() != null && job.getSalaryMax() != null
                 && job.getSalaryMin() > job.getSalaryMax()) {
-            throw new JobValidationException("salaryMin must be less than or equal to salaryMax");
+            throw new InvalidRequestException("salaryMin must be less than or equal to salaryMax");
         }
     }
 
@@ -138,7 +138,7 @@ public class JobService {
             jobSkillRepository.saveAll(entities);
             jobSkillRepository.flush();
         } catch (DataIntegrityViolationException ex) {
-            throw new DuplicateJobSkillException("A duplicate skill was submitted for the job");
+            throw new DuplicateResourceException("A duplicate skill was submitted for the job");
         }
     }
 
