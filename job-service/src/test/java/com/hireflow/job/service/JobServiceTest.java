@@ -22,7 +22,6 @@ import com.hireflow.job.entity.EmploymentType;
 import com.hireflow.job.entity.Job;
 import com.hireflow.job.entity.JobSkill;
 import com.hireflow.job.entity.JobStatus;
-import com.hireflow.job.exception.DuplicateResourceException;
 import com.hireflow.job.exception.InvalidRequestException;
 import com.hireflow.job.exception.ResourceNotFoundException;
 import com.hireflow.job.repository.JobRepository;
@@ -318,7 +317,7 @@ class JobServiceTest {
     }
 
     @Test
-    void convertsDuplicateSkillViolationIntoDuplicateResourceException() {
+    void propagatesDuplicateSkillConstraintViolationForGlobalHandling() {
         UUID recruiterId = UUID.randomUUID();
         CreateJobRequest request = createRequest(recruiterId, List.of("Java"));
         stubSavedJob();
@@ -326,7 +325,7 @@ class JobServiceTest {
                 .thenThrow(new DataIntegrityViolationException("uk_job_skills_job_skill"));
 
         assertThatThrownBy(() -> jobService.createJob(request))
-                .isInstanceOf(DuplicateResourceException.class);
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     private void stubSavedJob() {

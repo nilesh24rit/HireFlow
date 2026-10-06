@@ -69,15 +69,14 @@ class UserServiceTest {
     }
 
     @Test
-    void rejectsDuplicateEmailWhenDatabaseConstraintFails() {
+    void propagatesDatabaseConstraintViolationForGlobalHandling() {
         CreateUserRequest request = new CreateUserRequest("jane@example.com", "Jane", "Doe", UserRole.CANDIDATE);
         when(userRepository.existsByEmail("jane@example.com")).thenReturn(false);
         when(userRepository.saveAndFlush(any(User.class)))
                 .thenThrow(new DataIntegrityViolationException("uk_users_email"));
 
         assertThatThrownBy(() -> userService.createUser(request))
-                .isInstanceOf(DuplicateResourceException.class)
-                .hasMessageContaining("jane@example.com");
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test

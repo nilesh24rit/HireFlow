@@ -76,7 +76,7 @@ class ApplicationServiceTest {
     }
 
     @Test
-    void convertsUniqueConstraintViolationIntoDuplicateApplication() {
+    void propagatesUniqueConstraintViolationForGlobalHandling() {
         UUID candidateId = UUID.randomUUID();
         UUID jobId = UUID.randomUUID();
         CreateApplicationRequest request = new CreateApplicationRequest(candidateId, jobId, null);
@@ -85,7 +85,7 @@ class ApplicationServiceTest {
                 .thenThrow(new DataIntegrityViolationException("uk_applications_candidate_job"));
 
         assertThatThrownBy(() -> applicationService.createApplication(request))
-                .isInstanceOf(DuplicateResourceException.class);
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test

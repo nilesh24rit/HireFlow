@@ -2,7 +2,6 @@ package com.hireflow.auth.service;
 
 import java.util.UUID;
 
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,11 +32,7 @@ public class UserService {
         user.setFirstName(request.firstName());
         user.setLastName(request.lastName());
         user.setRole(request.role());
-        try {
-            return toResponse(userRepository.saveAndFlush(user));
-        } catch (DataIntegrityViolationException ex) {
-            throw duplicateEmail(request.email());
-        }
+        return toResponse(userRepository.saveAndFlush(user));
     }
 
     @Transactional(readOnly = true)

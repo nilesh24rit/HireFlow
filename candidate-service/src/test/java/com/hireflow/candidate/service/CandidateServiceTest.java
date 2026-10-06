@@ -116,7 +116,7 @@ class CandidateServiceTest {
     }
 
     @Test
-    void rejectsDuplicateUserWhenDatabaseConstraintFails() {
+    void propagatesDatabaseConstraintViolationForGlobalHandling() {
         UUID userId = UUID.randomUUID();
         CreateCandidateRequest request = createRequest(userId, List.of());
         when(candidateRepository.existsByUserId(userId)).thenReturn(false);
@@ -124,8 +124,7 @@ class CandidateServiceTest {
                 .thenThrow(new DataIntegrityViolationException("uk_candidates_user_id"));
 
         assertThatThrownBy(() -> candidateService.createCandidate(request))
-                .isInstanceOf(DuplicateResourceException.class)
-                .hasMessageContaining(userId.toString());
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test

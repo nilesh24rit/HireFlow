@@ -6,7 +6,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,12 +48,7 @@ public class CandidateService {
         candidate.setLinkedinUrl(request.linkedinUrl());
         candidate.setGithubUrl(request.githubUrl());
 
-        Candidate saved;
-        try {
-            saved = candidateRepository.saveAndFlush(candidate);
-        } catch (DataIntegrityViolationException ex) {
-            throw duplicateCandidate(request.userId());
-        }
+        Candidate saved = candidateRepository.saveAndFlush(candidate);
         saveSkills(saved.getId(), request.skills());
         return toResponse(saved);
     }

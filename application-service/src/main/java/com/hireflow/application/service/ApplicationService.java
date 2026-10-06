@@ -3,7 +3,6 @@ package com.hireflow.application.service;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,12 +40,7 @@ public class ApplicationService {
         application.setCoverLetter(request.coverLetter());
         application.setStatus(ApplicationStatus.APPLIED);
 
-        Application saved;
-        try {
-            saved = applicationRepository.saveAndFlush(application);
-        } catch (DataIntegrityViolationException ex) {
-            throw duplicateApplication(request.candidateId(), request.jobId());
-        }
+        Application saved = applicationRepository.saveAndFlush(application);
         return toResponse(saved);
     }
 

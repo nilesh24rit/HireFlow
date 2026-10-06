@@ -3,7 +3,6 @@ package com.hireflow.job.service;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,7 +12,6 @@ import com.hireflow.job.dto.UpdateJobRequest;
 import com.hireflow.job.entity.Job;
 import com.hireflow.job.entity.JobSkill;
 import com.hireflow.job.entity.JobStatus;
-import com.hireflow.job.exception.DuplicateResourceException;
 import com.hireflow.job.exception.InvalidRequestException;
 import com.hireflow.job.exception.ResourceNotFoundException;
 import com.hireflow.job.repository.JobRepository;
@@ -134,12 +132,8 @@ public class JobService {
         List<JobSkill> entities = normalized.stream()
                 .map(skill -> newSkill(jobId, skill))
                 .toList();
-        try {
-            jobSkillRepository.saveAll(entities);
-            jobSkillRepository.flush();
-        } catch (DataIntegrityViolationException ex) {
-            throw new DuplicateResourceException("A duplicate skill was submitted for the job");
-        }
+        jobSkillRepository.saveAll(entities);
+        jobSkillRepository.flush();
     }
 
     private void replaceSkills(UUID jobId, List<String> skills) {
