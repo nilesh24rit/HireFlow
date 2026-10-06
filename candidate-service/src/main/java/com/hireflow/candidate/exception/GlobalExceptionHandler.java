@@ -7,6 +7,7 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.TypeMismatchException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -50,9 +51,20 @@ public class GlobalExceptionHandler {
 
     private static final String REQUEST_ID_HEADER = "X-Request-Id";
     private static final int MAX_REQUEST_ID_LENGTH = 64;
+    private static final int MAX_CAUSE_DEPTH = 10;
     private static final String GENERIC_ERROR_MESSAGE = "An unexpected error occurred";
     private static final String MALFORMED_BODY_MESSAGE = "Request body is malformed or unreadable";
     private static final String VALIDATION_FAILED_MESSAGE = "Request validation failed";
+    private static final String CONFLICT_MESSAGE = "The request conflicts with existing data";
+
+    /**
+     * Unique constraints owned by this service, mapped to the message that is
+     * safe to return. The constraint names are used for server side matching
+     * only and are never sent to the caller.
+     */
+    private static final Map<String, String> KNOWN_UNIQUE_CONSTRAINTS = Map.of(
+            "uk_candidates_user_id", "A candidate profile already exists for this user",
+            "uk_candidate_skills_candidate_skill", "A duplicate skill was submitted for the profile");
 
     // ------------------------------------------------------------------
     // Domain exceptions thrown by services
@@ -247,6 +259,31 @@ public class GlobalExceptionHandler {
     }
 
     // ------------------------------------------------------------------
+    // Persistence conflicts
+    // ------------------------------------------------------------------
+
+    /**
+     * Maps a database constraint violation onto {@code 409 Conflict}.
+     *
+     * <p>Known unique constraints, such as a duplicate email, produce a
+     * specific message; every other integrity conflict produces a generic one.
+     * Neither the SQL nor any database detail leaves the server.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiErrorResponse> handleDataIntegrityViolation(DataIntegrityViolationException ex,
+            HttpServletRequest request) {
+        log.warn("Database conflict of type {} while processing {} {}",
+                ex.getClass().getSimpleName(), request.getMethod(), request.getRequestURI());
+        String diagnostics = diagnostics(ex);
+        for (Map.Entry<String, String> known : KNOWN_UNIQUE_CONSTRAINTS.entrySet()) {
+            if (diagnostics.contains(known.getKey())) {
+                return respond(HttpStatus.CONFLICT, ErrorCode.DUPLICATE_RESOURCE, known.getValue(), request, null);
+            }
+        }
+        return respond(HttpStatus.CONFLICT, ErrorCode.CONFLICT, CONFLICT_MESSAGE, request, null);
+    }
+
+    // ------------------------------------------------------------------
     // Anything else
     // ------------------------------------------------------------------
 
@@ -281,6 +318,23 @@ public class GlobalExceptionHandler {
         return requestId.length() > MAX_REQUEST_ID_LENGTH
                 ? requestId.substring(0, MAX_REQUEST_ID_LENGTH)
                 : requestId;
+    }
+
+    /**
+     * Collects the messages of the exception chain so that known constraint
+     * names can be recognised. The result is used for matching only and is
+     * never returned to the caller.
+     */
+    private String diagnostics(Throwable ex) {
+        StringBuilder diagnostics = new StringBuilder();
+        Throwable current = ex;
+        for (int depth = 0; current != null && depth < MAX_CAUSE_DEPTH; depth++) {
+            if (current.getMessage() != null) {
+                diagnostics.append(current.getMessage()).append(' ');
+            }
+            current = current.getCause();
+        }
+        return diagnostics.toString();
     }
 
     private ErrorCode codeForType(Class<?> type) {
