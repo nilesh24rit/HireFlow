@@ -21,6 +21,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import com.hireflow.job.dto.CreateJobRequest;
 import com.hireflow.job.dto.JobResponse;
 import com.hireflow.job.dto.UpdateJobRequest;
+import com.hireflow.job.error.ApiErrorResponse;
 import com.hireflow.job.service.JobService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -51,8 +52,12 @@ public class JobController {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Job created",
                     content = @Content(schema = @Schema(implementation = JobResponse.class))),
-            @ApiResponse(responseCode = "400", description = "Invalid request payload"),
-            @ApiResponse(responseCode = "409", description = "Duplicate skill submitted for the job")})
+            @ApiResponse(responseCode = "400", description = "Invalid request payload",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "409", description = "Duplicate skill submitted for the job",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Unexpected server error",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))})
     public ResponseEntity<JobResponse> createJob(@Valid @RequestBody CreateJobRequest request) {
         JobResponse created = jobService.createJob(request);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}")
@@ -67,8 +72,12 @@ public class JobController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Job found",
                     content = @Content(schema = @Schema(implementation = JobResponse.class))),
-            @ApiResponse(responseCode = "400", description = "Malformed job id"),
-            @ApiResponse(responseCode = "404", description = "Job not found")})
+            @ApiResponse(responseCode = "400", description = "Malformed job id",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Job not found",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Unexpected server error",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))})
     public JobResponse getJobById(
             @Parameter(description = "UUID of the job") @PathVariable UUID id) {
         return jobService.getJobById(id);
@@ -80,7 +89,10 @@ public class JobController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Jobs found (possibly an empty list)",
                     content = @Content(array = @ArraySchema(schema = @Schema(implementation = JobResponse.class)))),
-            @ApiResponse(responseCode = "400", description = "Malformed recruiter id")})
+            @ApiResponse(responseCode = "400", description = "Malformed recruiter id",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Unexpected server error",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))})
     public List<JobResponse> getJobsByRecruiterId(
             @Parameter(description = "UUID of the owning recruiter") @PathVariable UUID recruiterId) {
         return jobService.getJobsByRecruiterId(recruiterId);
@@ -93,9 +105,14 @@ public class JobController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Job updated",
                     content = @Content(schema = @Schema(implementation = JobResponse.class))),
-            @ApiResponse(responseCode = "400", description = "Invalid request payload"),
-            @ApiResponse(responseCode = "404", description = "Job not found"),
-            @ApiResponse(responseCode = "409", description = "Duplicate skill submitted for the job")})
+            @ApiResponse(responseCode = "400", description = "Invalid request payload",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Job not found",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "409", description = "Duplicate skill submitted for the job",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Unexpected server error",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))})
     public JobResponse updateJob(
             @Parameter(description = "UUID of the job") @PathVariable UUID id,
             @Valid @RequestBody UpdateJobRequest request) {
@@ -108,8 +125,12 @@ public class JobController {
             description = "Removes the job identified by the given UUID, along with its skills.")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Job deleted"),
-            @ApiResponse(responseCode = "400", description = "Malformed job id"),
-            @ApiResponse(responseCode = "404", description = "Job not found")})
+            @ApiResponse(responseCode = "400", description = "Malformed job id",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Job not found",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Unexpected server error",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))})
     public void deleteJob(
             @Parameter(description = "UUID of the job") @PathVariable UUID id) {
         jobService.deleteJob(id);
