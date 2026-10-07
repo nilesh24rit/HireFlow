@@ -20,6 +20,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import com.hireflow.candidate.dto.CandidateResponse;
 import com.hireflow.candidate.dto.CreateCandidateRequest;
 import com.hireflow.candidate.dto.UpdateCandidateRequest;
+import com.hireflow.candidate.error.ApiErrorResponse;
 import com.hireflow.candidate.service.CandidateService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -48,8 +49,12 @@ public class CandidateController {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Candidate created",
                     content = @Content(schema = @Schema(implementation = CandidateResponse.class))),
-            @ApiResponse(responseCode = "400", description = "Invalid request payload"),
-            @ApiResponse(responseCode = "409", description = "A candidate profile already exists for the user")})
+            @ApiResponse(responseCode = "400", description = "Invalid request payload",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "409", description = "A candidate profile already exists for the user",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Unexpected server error",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))})
     public ResponseEntity<CandidateResponse> createCandidate(
             @Valid @RequestBody CreateCandidateRequest request) {
         CandidateResponse created = candidateService.createCandidate(request);
@@ -65,8 +70,12 @@ public class CandidateController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Candidate found",
                     content = @Content(schema = @Schema(implementation = CandidateResponse.class))),
-            @ApiResponse(responseCode = "400", description = "Malformed candidate id"),
-            @ApiResponse(responseCode = "404", description = "Candidate not found")})
+            @ApiResponse(responseCode = "400", description = "Malformed candidate id",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Candidate not found",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Unexpected server error",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))})
     public CandidateResponse getCandidateById(
             @Parameter(description = "UUID of the candidate") @PathVariable UUID id) {
         return candidateService.getCandidateById(id);
@@ -78,8 +87,12 @@ public class CandidateController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Candidate found",
                     content = @Content(schema = @Schema(implementation = CandidateResponse.class))),
-            @ApiResponse(responseCode = "400", description = "Malformed user id"),
-            @ApiResponse(responseCode = "404", description = "No candidate exists for the user")})
+            @ApiResponse(responseCode = "400", description = "Malformed user id",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "No candidate exists for the user",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Unexpected server error",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))})
     public CandidateResponse getCandidateByUserId(
             @Parameter(description = "UUID of the owning user") @PathVariable UUID userId) {
         return candidateService.getCandidateByUserId(userId);
@@ -92,8 +105,12 @@ public class CandidateController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Candidate updated",
                     content = @Content(schema = @Schema(implementation = CandidateResponse.class))),
-            @ApiResponse(responseCode = "400", description = "Invalid request payload"),
-            @ApiResponse(responseCode = "404", description = "Candidate not found")})
+            @ApiResponse(responseCode = "400", description = "Invalid request payload",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Candidate not found",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Unexpected server error",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))})
     public CandidateResponse updateCandidate(
             @Parameter(description = "UUID of the candidate") @PathVariable UUID id,
             @Valid @RequestBody UpdateCandidateRequest request) {
@@ -106,8 +123,12 @@ public class CandidateController {
             description = "Removes the candidate profile identified by the given UUID, along with its skills.")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Candidate deleted"),
-            @ApiResponse(responseCode = "400", description = "Malformed candidate id"),
-            @ApiResponse(responseCode = "404", description = "Candidate not found")})
+            @ApiResponse(responseCode = "400", description = "Malformed candidate id",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Candidate not found",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Unexpected server error",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))})
     public void deleteCandidate(
             @Parameter(description = "UUID of the candidate") @PathVariable UUID id) {
         candidateService.deleteCandidate(id);
