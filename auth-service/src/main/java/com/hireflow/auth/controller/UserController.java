@@ -20,6 +20,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import com.hireflow.auth.dto.CreateUserRequest;
 import com.hireflow.auth.dto.UpdateUserRequest;
 import com.hireflow.auth.dto.UserResponse;
+import com.hireflow.auth.error.ApiErrorResponse;
 import com.hireflow.auth.service.UserService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -47,8 +48,12 @@ public class UserController {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "User created",
                     content = @Content(schema = @Schema(implementation = UserResponse.class))),
-            @ApiResponse(responseCode = "400", description = "Invalid request payload"),
-            @ApiResponse(responseCode = "409", description = "Email is already registered")})
+            @ApiResponse(responseCode = "400", description = "Invalid request payload",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "409", description = "Email is already registered",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Unexpected server error",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))})
     public ResponseEntity<UserResponse> createUser(@Valid @RequestBody CreateUserRequest request) {
         UserResponse created = userService.createUser(request);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}")
@@ -62,8 +67,12 @@ public class UserController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "User found",
                     content = @Content(schema = @Schema(implementation = UserResponse.class))),
-            @ApiResponse(responseCode = "400", description = "Malformed user id"),
-            @ApiResponse(responseCode = "404", description = "User not found")})
+            @ApiResponse(responseCode = "400", description = "Malformed user id",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "User not found",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Unexpected server error",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))})
     public UserResponse getUserById(
             @Parameter(description = "UUID of the user") @PathVariable UUID id) {
         return userService.getUserById(id);
@@ -74,7 +83,10 @@ public class UserController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "User found",
                     content = @Content(schema = @Schema(implementation = UserResponse.class))),
-            @ApiResponse(responseCode = "404", description = "User not found")})
+            @ApiResponse(responseCode = "404", description = "User not found",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Unexpected server error",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))})
     public UserResponse getUserByEmail(
             @Parameter(description = "Email address of the user") @PathVariable String email) {
         return userService.getUserByEmail(email);
@@ -86,8 +98,12 @@ public class UserController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "User updated",
                     content = @Content(schema = @Schema(implementation = UserResponse.class))),
-            @ApiResponse(responseCode = "400", description = "Invalid request payload"),
-            @ApiResponse(responseCode = "404", description = "User not found")})
+            @ApiResponse(responseCode = "400", description = "Invalid request payload",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "User not found",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Unexpected server error",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))})
     public UserResponse updateUser(
             @Parameter(description = "UUID of the user") @PathVariable UUID id,
             @Valid @RequestBody UpdateUserRequest request) {
@@ -99,8 +115,12 @@ public class UserController {
     @Operation(summary = "Delete a user", description = "Removes the user identified by the given UUID.")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "User deleted"),
-            @ApiResponse(responseCode = "400", description = "Malformed user id"),
-            @ApiResponse(responseCode = "404", description = "User not found")})
+            @ApiResponse(responseCode = "400", description = "Malformed user id",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "User not found",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Unexpected server error",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))})
     public void deleteUser(
             @Parameter(description = "UUID of the user") @PathVariable UUID id) {
         userService.deleteUser(id);
