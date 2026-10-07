@@ -21,6 +21,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import com.hireflow.application.dto.ApplicationResponse;
 import com.hireflow.application.dto.CreateApplicationRequest;
 import com.hireflow.application.dto.UpdateApplicationStatusRequest;
+import com.hireflow.application.error.ApiErrorResponse;
 import com.hireflow.application.service.ApplicationService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -52,8 +53,12 @@ public class ApplicationController {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Application created",
                     content = @Content(schema = @Schema(implementation = ApplicationResponse.class))),
-            @ApiResponse(responseCode = "400", description = "Invalid request payload"),
-            @ApiResponse(responseCode = "409", description = "Candidate already applied to the job")})
+            @ApiResponse(responseCode = "400", description = "Invalid request payload",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "409", description = "Candidate already applied to the job",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Unexpected server error",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))})
     public ResponseEntity<ApplicationResponse> createApplication(
             @Valid @RequestBody CreateApplicationRequest request) {
         ApplicationResponse created = applicationService.createApplication(request);
@@ -69,8 +74,12 @@ public class ApplicationController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Application found",
                     content = @Content(schema = @Schema(implementation = ApplicationResponse.class))),
-            @ApiResponse(responseCode = "400", description = "Malformed application id"),
-            @ApiResponse(responseCode = "404", description = "Application not found")})
+            @ApiResponse(responseCode = "400", description = "Malformed application id",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Application not found",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Unexpected server error",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))})
     public ApplicationResponse getApplicationById(
             @Parameter(description = "UUID of the application") @PathVariable UUID id) {
         return applicationService.getApplicationById(id);
@@ -83,7 +92,10 @@ public class ApplicationController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Applications found (possibly an empty list)",
                     content = @Content(array = @ArraySchema(schema = @Schema(implementation = ApplicationResponse.class)))),
-            @ApiResponse(responseCode = "400", description = "Malformed candidate id")})
+            @ApiResponse(responseCode = "400", description = "Malformed candidate id",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Unexpected server error",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))})
     public List<ApplicationResponse> getApplicationsByCandidateId(
             @Parameter(description = "UUID of the candidate") @PathVariable UUID candidateId) {
         return applicationService.getApplicationsByCandidateId(candidateId);
@@ -96,7 +108,10 @@ public class ApplicationController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Applications found (possibly an empty list)",
                     content = @Content(array = @ArraySchema(schema = @Schema(implementation = ApplicationResponse.class)))),
-            @ApiResponse(responseCode = "400", description = "Malformed job id")})
+            @ApiResponse(responseCode = "400", description = "Malformed job id",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Unexpected server error",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))})
     public List<ApplicationResponse> getApplicationsByJobId(
             @Parameter(description = "UUID of the job") @PathVariable UUID jobId) {
         return applicationService.getApplicationsByJobId(jobId);
@@ -108,8 +123,12 @@ public class ApplicationController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Status updated",
                     content = @Content(schema = @Schema(implementation = ApplicationResponse.class))),
-            @ApiResponse(responseCode = "400", description = "Missing, unknown or invalid status"),
-            @ApiResponse(responseCode = "404", description = "Application not found")})
+            @ApiResponse(responseCode = "400", description = "Missing, unknown or invalid status",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Application not found",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Unexpected server error",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))})
     public ApplicationResponse updateApplicationStatus(
             @Parameter(description = "UUID of the application") @PathVariable UUID id,
             @Valid @RequestBody UpdateApplicationStatusRequest request) {
@@ -123,8 +142,12 @@ public class ApplicationController {
                     + "representing a withdrawal by the candidate.")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Application deleted"),
-            @ApiResponse(responseCode = "400", description = "Malformed application id"),
-            @ApiResponse(responseCode = "404", description = "Application not found")})
+            @ApiResponse(responseCode = "400", description = "Malformed application id",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Application not found",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Unexpected server error",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))})
     public void deleteApplication(
             @Parameter(description = "UUID of the application") @PathVariable UUID id) {
         applicationService.deleteApplication(id);
