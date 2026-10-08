@@ -1,41 +1,54 @@
 package com.hireflow.gateway.config;
 
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Declares the external routes exposed by the HireFlow API gateway.
+ * Route table of the HireFlow API gateway.
  *
- * <p>Each route maps a public {@code /api/...} path onto the internal service that owns it.
- * The incoming path is forwarded unchanged because the downstream controllers already use
- * the same {@code /api/...} contract, so no path rewriting filters are registered.</p>
+ * <p>Each entry names the route id, the public path predicate and the target service URI.
+ * Paths are forwarded untouched because the downstream controllers already expose the same
+ * {@code /api/...} contract, so no path rewriting filters are needed:</p>
+ *
+ * <pre>
+ * auth-service        /api/users/**         -&gt; auth-service
+ * candidate-service   /api/candidates/**    -&gt; candidate-service
+ * job-service         /api/jobs/**          -&gt; job-service
+ * application-service /api/applications/**  -&gt; application-service
+ * </pre>
  */
 @Configuration
+@EnableConfigurationProperties(HireFlowServiceUris.class)
 public class GatewayRouteConfiguration {
 
+    static final String AUTH_SERVICE_ROUTE_ID = "auth-service";
+    static final String CANDIDATE_SERVICE_ROUTE_ID = "candidate-service";
+    static final String JOB_SERVICE_ROUTE_ID = "job-service";
+    static final String APPLICATION_SERVICE_ROUTE_ID = "application-service";
+
+    static final String USERS_PATH = "/api/users/**";
+    static final String CANDIDATES_PATH = "/api/candidates/**";
+    static final String JOBS_PATH = "/api/jobs/**";
+    static final String APPLICATIONS_PATH = "/api/applications/**";
+
     @Bean
-    public RouteLocator apiRoutes(
-            RouteLocatorBuilder builder,
-            @Value("${hireflow.services.auth-service-uri:http://localhost:8081}") String authServiceUri,
-            @Value("${hireflow.services.candidate-service-uri:http://localhost:8082}") String candidateServiceUri,
-            @Value("${hireflow.services.job-service-uri:http://localhost:8083}") String jobServiceUri,
-            @Value("${hireflow.services.application-service-uri:http://localhost:8084}") String applicationServiceUri) {
+    public RouteLocator apiRoutes(RouteLocatorBuilder builder, HireFlowServiceUris services) {
         return builder.routes()
-                .route("auth-service", route -> route
-                        .path("/api/users/**")
-                        .uri(authServiceUri))
-                .route("candidate-service", route -> route
-                        .path("/api/candidates/**")
-                        .uri(candidateServiceUri))
-                .route("job-service", route -> route
-                        .path("/api/jobs/**")
-                        .uri(jobServiceUri))
-                .route("application-service", route -> route
-                        .path("/api/applications/**")
-                        .uri(applicationServiceUri))
+                .route(AUTH_SERVICE_ROUTE_ID, route -> route
+                        .path(USERS_PATH)
+                        .uri(services.authServiceUri()))
+                .route(CANDIDATE_SERVICE_ROUTE_ID, route -> route
+                        .path(CANDIDATES_PATH)
+                        .uri(services.candidateServiceUri()))
+                .route(JOB_SERVICE_ROUTE_ID, route -> route
+                        .path(JOBS_PATH)
+                        .uri(services.jobServiceUri()))
+                .route(APPLICATION_SERVICE_ROUTE_ID, route -> route
+                        .path(APPLICATIONS_PATH)
+                        .uri(services.applicationServiceUri()))
                 .build();
     }
 }
