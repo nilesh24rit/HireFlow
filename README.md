@@ -40,3 +40,24 @@ mvn clean verify
 
 Repeat the same command inside each service directory. Shared protobuf definitions live in `proto/` and are compiled into gRPC stubs during the build.
 
+## API Gateway Routing
+
+The `api-gateway` module is the single entry point of the platform. It forwards requests to
+the services without rewriting paths, methods, status codes, or response bodies:
+
+| Public path | Route id | Target (local development) |
+| --- | --- | --- |
+| `/api/users/**` | `auth-service` | `http://localhost:8081` |
+| `/api/candidates/**` | `candidate-service` | `http://localhost:8082` |
+| `/api/jobs/**` | `job-service` | `http://localhost:8083` |
+| `/api/applications/**` | `application-service` | `http://localhost:8084` |
+
+Target addresses are development defaults declared in source and can be overridden with the
+`hireflow.services.*-uri` properties (or equivalent environment variables); they contain no
+credentials. Unmatched paths return `404`, an unreachable service returns a clean `502`
+without stack traces, and every response produced by a service is passed through untouched.
+Gateway access logs record only route id, HTTP method, request path, and response status.
+
+Swagger/OpenAPI stays on the services themselves and is unaffected by the gateway:
+`http://localhost:<service-port>/v3/api-docs` and `/swagger-ui.html`.
+
