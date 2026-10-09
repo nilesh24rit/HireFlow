@@ -9,6 +9,8 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 
+import com.hireflow.auth.security.SecurityErrorResponseHandler;
+
 /**
  * Explicit security foundation for auth-service.
  *
@@ -38,6 +40,11 @@ import org.springframework.security.web.SecurityFilterChain;
  *       REST services run without a security stack at all — no session, no cookies, no CSRF
  *       surface — so there is nothing to disable or preserve there; introducing security to
  *       those services happens together with JWT in Step 13.</li>
+ *   <li><b>Security responses follow the Step 9 error contract.</b> 401 and 403 are written
+ *       deliberately as {@code {timestamp, status, error, code, message, path}} JSON by
+ *       {@link com.hireflow.auth.security.SecurityErrorResponseHandler} — no stack traces or
+ *       internal details, 401 keeps its {@code WWW-Authenticate} challenge, and the response
+ *       is written directly so no error dispatch can rewrite the status.</li>
  * </ul>
  *
  * <p>Uses the {@code SecurityFilterChain} bean model rather than the deprecated
@@ -56,7 +63,8 @@ public class SecurityConfiguration {
      * @throws Exception when the security rules cannot be built
      */
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http,
+            SecurityErrorResponseHandler securityErrorResponseHandler) throws Exception {
         return http
                 // No server-side session: authentication is derived fresh from the
                 // Authorization header on every request, so nothing can be replayed
@@ -71,6 +79,11 @@ public class SecurityConfiguration {
                 .authorizeHttpRequests(authorize -> authorize
                         .anyRequest()
                         .authenticated())
+                // Authentication and access-denied responses are rendered deliberately in
+                // the Step 9 error contract instead of Spring Security's empty defaults.
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint(securityErrorResponseHandler)
+                        .accessDeniedHandler(securityErrorResponseHandler))
                 .httpBasic(Customizer.withDefaults())
                 .build();
     }

@@ -26,6 +26,12 @@ public enum ErrorCode {
     /** The request conflicts with the current state of the resource. */
     CONFLICT,
 
+    /** The request carries no valid credentials for a protected endpoint. */
+    UNAUTHENTICATED,
+
+    /** The caller is authenticated but not allowed to perform the request. */
+    FORBIDDEN,
+
     /** An unexpected server side failure. */
     INTERNAL_ERROR
 }

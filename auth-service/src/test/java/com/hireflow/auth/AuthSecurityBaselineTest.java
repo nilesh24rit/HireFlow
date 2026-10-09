@@ -60,8 +60,10 @@ import com.hireflow.auth.repository.UserRepository;
  *       below is what remains observable.</li>
  *   <li><b>Swagger:</b> {@code /v3/api-docs} requires authentication (401 anonymous,
  *       200 authenticated) — the policy already asserted by {@code OpenApiDocumentationTest}.</li>
- *   <li><b>Security responses:</b> 401 responses carry no body (the Step 9 error contract
- *       is not applied to security rejections yet).</li>
+ *   <li><b>Security responses:</b> 401 responses originally carried no body; since the
+ *       "standardize security responses" checkpoint they deliberately answer in the
+ *       Step 9 contract ({@code timestamp, status, error, code, message, path}) with the
+ *       Basic challenge kept on 401 and no stack traces or internals anywhere.</li>
  * </ul>
  *
  * <p>Current configuration (checkpoints: "add security foundation", "configure csrf
@@ -112,15 +114,12 @@ class AuthSecurityBaselineTest {
     }
 
     @Test
-    void getWithoutCredentialsIsRejectedWith401AndEmptyBody() throws Exception {
+    void getWithoutCredentialsIsRejectedWith401UsingErrorContract() throws Exception {
         User user = seedUser();
 
         HttpResponse<String> response = get("/api/users/" + user.getId(), null);
 
-        assertThat(response.statusCode()).isEqualTo(401);
-        assertThat(response.headers().firstValue("WWW-Authenticate"))
-                .hasValueSatisfying(challenge -> assertThat(challenge).startsWith("Basic"));
-        assertThat(response.body()).isEmpty();
+        assertUnauthenticatedErrorContract(response);
     }
 
     @Test
@@ -149,13 +148,10 @@ class AuthSecurityBaselineTest {
     @Test
     void postWithoutCredentialsIsStillRejectedWith401() throws Exception {
         // CSRF is off, but the authentication requirement is untouched: anonymous POSTs
-        // remain rejected with the Basic challenge and no payload.
+        // remain rejected — now deliberately with the Step 9 error contract body.
         HttpResponse<String> response = post("/api/users", createUserBody(), null, null);
 
-        assertThat(response.statusCode()).isEqualTo(401);
-        assertThat(response.headers().firstValue("WWW-Authenticate"))
-                .hasValueSatisfying(challenge -> assertThat(challenge).startsWith("Basic"));
-        assertThat(response.body()).isEmpty();
+        assertUnauthenticatedErrorContract(response);
     }
 
     @Test
@@ -183,6 +179,27 @@ class AuthSecurityBaselineTest {
                 .cookieHandler(new CookieManager())
                 .version(HttpClient.Version.HTTP_1_1)
                 .build();
+    }
+
+    /**
+     * Asserts the deliberate 401 shape: Step 9 error contract, Basic challenge, and no
+     * stack traces, exception names or other internals in the payload.
+     */
+    private void assertUnauthenticatedErrorContract(HttpResponse<String> response) {
+        assertThat(response.statusCode()).isEqualTo(401);
+        assertThat(response.headers().firstValue("WWW-Authenticate"))
+                .hasValueSatisfying(challenge -> assertThat(challenge).startsWith("Basic"));
+        assertThat(response.headers().firstValue("Content-Type"))
+                .hasValueSatisfying(type -> assertThat(type).startsWith("application/json"));
+        assertThat(response.body())
+                .contains("\"timestamp\":")
+                .contains("\"status\":401")
+                .contains("\"error\":\"Unauthorized\"")
+                .contains("\"code\":\"UNAUTHENTICATED\"")
+                .contains("\"message\":\"Authentication required\"")
+                .contains("\"path\":")
+                .doesNotContain("Exception")
+                .doesNotContain("trace");
     }
 
     private HttpRequest.Builder request(String path) {
