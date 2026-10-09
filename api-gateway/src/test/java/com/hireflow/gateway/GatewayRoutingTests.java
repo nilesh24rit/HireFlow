@@ -131,6 +131,22 @@ class GatewayRoutingTests {
     }
 
     @Test
+    void passesSecurityResponsesThroughUntouched() {
+        // Step 12: the gateway performs no authentication, so a deliberate 401 from
+        // auth-service (error contract plus Basic challenge) must reach the client as-is.
+        client().get().uri("/api/users/security/401").exchange()
+                .expectStatus().isUnauthorized()
+                .expectHeader().exists("WWW-Authenticate")
+                .expectHeader().valueEquals("Content-Type", "application/json")
+                .expectBody(String.class)
+                .value(body -> assertThat(body)
+                        .contains("\"code\":\"UNAUTHENTICATED\"")
+                        .contains("\"message\":\"Authentication required\"")
+                        .contains("\"path\":\"/api/users/security/401\"")
+                        .doesNotContain("gateway"));
+    }
+
+    @Test
     void unknownRouteReturnsNotFound() {
         client().get().uri("/api/unknown/thing").exchange()
                 .expectStatus().isNotFound();

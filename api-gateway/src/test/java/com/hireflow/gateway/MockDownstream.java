@@ -15,7 +15,10 @@ import com.sun.net.httpserver.HttpServer;
  * which service answered together with the HTTP method, path, query string and body it
  * received, which lets the tests prove that the gateway selected the right target and
  * forwarded the request unchanged. A path segment {@code /error/<code>} makes the mock
- * respond with that status code so downstream status pass-through can be asserted.</p>
+ * respond with that status code so downstream status pass-through can be asserted, and a
+ * path segment {@code /security/401} makes it emit a deliberate auth-service style 401
+ * (Step 9 error contract plus {@code WWW-Authenticate}) so security-response pass-through
+ * can be asserted.</p>
  */
 final class MockDownstream {
 
@@ -52,6 +55,11 @@ final class MockDownstream {
         String query = exchange.getRequestURI().getQuery();
         String requestBody = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
 
+        if (path.contains("/security/401")) {
+            respondWithSecurityRejection(exchange, path);
+            return;
+        }
+
         int status = downstreamStatus(path);
         String body = status == 200
                 ? "service=" + serviceName
@@ -64,6 +72,22 @@ final class MockDownstream {
         byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
         exchange.getResponseHeaders().set("Content-Type", "text/plain");
         exchange.sendResponseHeaders(status, bytes.length);
+        exchange.getResponseBody().write(bytes);
+        exchange.close();
+    }
+
+    /**
+     * Emulates the deliberate 401 of auth-service: the Step 9 error contract with the HTTP
+     * Basic challenge, so that security-response pass-through can be asserted.
+     */
+    private void respondWithSecurityRejection(HttpExchange exchange, String path) throws IOException {
+        String body = "{\"timestamp\":\"2026-01-01T00:00:00Z\",\"status\":401,\"error\":\"Unauthorized\","
+                + "\"code\":\"UNAUTHENTICATED\",\"message\":\"Authentication required\",\"path\":\"" + path + "\"}";
+        byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().set("Content-Type", "application/json");
+        exchange.getResponseHeaders().set("WWW-Authenticate",
+                "Basic realm=\"Mock auth-service\", charset=\"UTF-8\"");
+        exchange.sendResponseHeaders(401, bytes.length);
         exchange.getResponseBody().write(bytes);
         exchange.close();
     }
