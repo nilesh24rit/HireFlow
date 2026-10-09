@@ -2,7 +2,6 @@ package com.hireflow.auth.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -81,10 +80,14 @@ public class SecurityConfiguration {
                         .authenticated())
                 // Authentication and access-denied responses are rendered deliberately in
                 // the Step 9 error contract instead of Spring Security's empty defaults.
+                // Basic gets the same entry point so rejected credentials are also written
+                // directly: the configurer's default would sendError(401), whose error
+                // dispatch to /error rewrites the reported path of the response.
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint(securityErrorResponseHandler)
                         .accessDeniedHandler(securityErrorResponseHandler))
-                .httpBasic(Customizer.withDefaults())
+                .httpBasic(basic -> basic
+                        .authenticationEntryPoint(securityErrorResponseHandler))
                 .build();
     }
 }

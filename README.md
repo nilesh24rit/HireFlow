@@ -61,3 +61,33 @@ Gateway access logs record only route id, HTTP method, request path, and respons
 Swagger/OpenAPI stays on the services themselves and is unaffected by the gateway:
 `http://localhost:<service-port>/v3/api-docs` and `/swagger-ui.html`.
 
+## Security
+
+Security is a stateless, header-authenticated foundation (JWT arrives in a later step):
+
+- **auth-service** holds the platform's only `SecurityFilterChain`: every endpoint requires
+  authentication, currently over HTTP Basic. There is no form login, no session-based login,
+  and no public endpoint — Swagger included, which answers `401` until credentials are sent.
+- **CSRF policy:** authority never lives in a cookie or session — each request authenticates
+  itself through the `Authorization` header — so auth-service runs with
+  `SessionCreationPolicy.STATELESS` and CSRF protection is deliberately disabled, with the
+  reasoning documented in `SecurityConfiguration`. The other REST services carry no security
+  stack, sessions, or cookies, so there is no CSRF surface to remove or preserve there.
+- **Security responses** use the common error contract: `401` and `403` answer
+  `{timestamp, status, error, code, message, path}` with the `UNAUTHENTICATED`/`FORBIDDEN`
+  codes, `401` keeps its `WWW-Authenticate` challenge, and no stack traces or internal
+  details are exposed. Responses are written directly, so no error dispatch can rewrite a
+  status or path.
+- **The gateway performs no authentication.** It only routes, so behavior is identical
+  direct and through the gateway, and `401` responses from auth-service pass through
+  untouched.
+- No health endpoint is exposed (no actuator dependency in any service).
+
+| Check | auth-service (8081) | candidate/job/application | via gateway (8080) |
+| --- | --- | --- | --- |
+| Request without credentials | `401` + error contract | not applicable (no auth stack) | `401` passthrough |
+| `GET /api/users/{id}` with credentials | `200` | — | `200`, byte-identical body |
+| Create via `POST` (no CSRF token) | `201` with credentials | `201` (public) | `201` |
+| `/v3/api-docs`, `/swagger-ui.html` | `401` → `200` with credentials | `200` (public) | — |
+| `/actuator/health` | not present (`404`) | not present (`404`) | — |
+

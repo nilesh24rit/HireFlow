@@ -119,7 +119,22 @@ class AuthSecurityBaselineTest {
 
         HttpResponse<String> response = get("/api/users/" + user.getId(), null);
 
-        assertUnauthenticatedErrorContract(response);
+        assertUnauthenticatedErrorContract(response, "/api/users/" + user.getId());
+    }
+
+    @Test
+    void wrongCredentialsAreRejectedWith401UsingErrorContract() throws Exception {
+        // Rejected credentials must produce the same deliberate 401 — and the path of the
+        // ORIGINAL request, not the container's /error dispatch path (the configurer's
+        // default entry point used to sendError(401), whose error dispatch rewrote it).
+        String wrongCredentials = "Basic " + Base64.getEncoder()
+                .encodeToString((SECURITY_USER + ":definitely-wrong-password")
+                        .getBytes(StandardCharsets.UTF_8));
+        String path = "/api/users/" + UUID.randomUUID();
+
+        HttpResponse<String> response = get(path, wrongCredentials);
+
+        assertUnauthenticatedErrorContract(response, path);
     }
 
     @Test
@@ -151,7 +166,7 @@ class AuthSecurityBaselineTest {
         // remain rejected — now deliberately with the Step 9 error contract body.
         HttpResponse<String> response = post("/api/users", createUserBody(), null, null);
 
-        assertUnauthenticatedErrorContract(response);
+        assertUnauthenticatedErrorContract(response, "/api/users");
     }
 
     @Test
@@ -182,10 +197,10 @@ class AuthSecurityBaselineTest {
     }
 
     /**
-     * Asserts the deliberate 401 shape: Step 9 error contract, Basic challenge, and no
-     * stack traces, exception names or other internals in the payload.
+     * Asserts the deliberate 401 shape: Step 9 error contract naming the original request
+     * path, Basic challenge, and no stack traces, exception names or other internals.
      */
-    private void assertUnauthenticatedErrorContract(HttpResponse<String> response) {
+    private void assertUnauthenticatedErrorContract(HttpResponse<String> response, String expectedPath) {
         assertThat(response.statusCode()).isEqualTo(401);
         assertThat(response.headers().firstValue("WWW-Authenticate"))
                 .hasValueSatisfying(challenge -> assertThat(challenge).startsWith("Basic"));
@@ -197,7 +212,8 @@ class AuthSecurityBaselineTest {
                 .contains("\"error\":\"Unauthorized\"")
                 .contains("\"code\":\"UNAUTHENTICATED\"")
                 .contains("\"message\":\"Authentication required\"")
-                .contains("\"path\":")
+                .contains("\"path\":\"" + expectedPath + "\"")
+                .doesNotContain("/error")
                 .doesNotContain("Exception")
                 .doesNotContain("trace");
     }
