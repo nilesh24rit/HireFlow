@@ -5,6 +5,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
@@ -26,8 +28,16 @@ import org.springframework.security.web.SecurityFilterChain;
  *   <li><b>No form login and no session-based login.</b> The generated login page that the
  *       default configuration served at {@code GET /login} is a browser flow HireFlow does
  *       not use — the API is consumed through explicit credentials per request.</li>
- *   <li><b>CSRF is untouched at this checkpoint</b> and is decided deliberately (with tests)
- *       in the CSRF policy checkpoint of Step 12, based on the current authentication model.</li>
+ *   <li><b>Stateless requests, CSRF disabled — deliberately.</b> Authentication rides on
+ *       the {@code Authorization} header of every request (HTTP Basic today, bearer JWT in
+ *       Step 13); authority is never stored in a cookie or server-side session, so there is
+ *       no ambient browser credential a cross-site request could abuse — the only condition
+ *       CSRF protects against. {@link SessionCreationPolicy#STATELESS} removes the one
+ *       CSRF-relevant surface the defaults had (a {@code JSESSIONID} that could silently
+ *       authenticate follow-up requests) instead of papering over it with tokens. The other
+ *       REST services run without a security stack at all — no session, no cookies, no CSRF
+ *       surface — so there is nothing to disable or preserve there; introducing security to
+ *       those services happens together with JWT in Step 13.</li>
  * </ul>
  *
  * <p>Uses the {@code SecurityFilterChain} bean model rather than the deprecated
@@ -48,6 +58,16 @@ public class SecurityConfiguration {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
+                // No server-side session: authentication is derived fresh from the
+                // Authorization header on every request, so nothing can be replayed
+                // through a session cookie.
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // CSRF only guards cookie/session authenticated flows. This API never
+                // stores authority in a cookie or session (see class javadoc), so a CSRF
+                // token would add ceremony without protecting anything. Deliberate policy
+                // for a stateless, header-authenticated REST service.
+                .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> authorize
                         .anyRequest()
                         .authenticated())

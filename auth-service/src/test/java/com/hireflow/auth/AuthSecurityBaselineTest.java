@@ -64,11 +64,12 @@ import com.hireflow.auth.repository.UserRepository;
  *       is not applied to security rejections yet).</li>
  * </ul>
  *
- * <p>Current configuration (checkpoint: "add security foundation"):
- * {@code SecurityConfiguration} declares an explicit {@code SecurityFilterChain} — every
- * request authenticated, HTTP Basic kept, generated form login removed. {@code GET /login}
- * is now an ordinary protected unknown path answering 401. CSRF is still enforced at this
- * checkpoint and is decided in the next one.
+ * <p>Current configuration (checkpoints: "add security foundation", "configure csrf
+ * policy"): {@code SecurityConfiguration} declares an explicit {@code SecurityFilterChain} —
+ * every request authenticated, HTTP Basic kept, generated form login removed, sessions
+ * stateless and CSRF disabled because authority never lives in a cookie or session.
+ * {@code GET /login} is an ordinary protected unknown path answering 401, and an
+ * authenticated POST needs no CSRF token.
  *
  * <p>Test credentials are local fixtures supplied through test-only properties, the same
  * way the datasource credentials come from the Testcontainers container.
@@ -133,12 +134,23 @@ class AuthSecurityBaselineTest {
     }
 
     @Test
-    void postWithBasicCredentialsButNoCsrfTokenIsRejectedWith401() throws Exception {
-        // Records the actual (misleading) behaviour: authentication succeeds conceptually,
-        // CsrfFilter rejects with 403, and the protected /error dispatch rewrites it to 401.
-        // At the inspection checkpoint the same POST with a CSRF token from the generated
-        // login page returned 201, proving the absent token was the blocker.
+    void postWithBasicCredentialsIsAcceptedWithoutCsrfToken() throws Exception {
+        // CSRF policy (checkpoint: "configure csrf policy"): the stateless, header-authenticated
+        // API accepts an authenticated POST without any CSRF token — the request that used to be
+        // rejected (403 masked as 401) before the policy was made deliberate.
         HttpResponse<String> response = post("/api/users", createUserBody(), basicAuthorization, null);
+
+        assertThat(response.statusCode()).isEqualTo(201);
+        assertThat(response.headers().firstValue("Location")).isPresent();
+        // Stateless: no session cookie may be issued for the request.
+        assertThat(response.headers().firstValue("Set-Cookie")).isEmpty();
+    }
+
+    @Test
+    void postWithoutCredentialsIsStillRejectedWith401() throws Exception {
+        // CSRF is off, but the authentication requirement is untouched: anonymous POSTs
+        // remain rejected with the Basic challenge and no payload.
+        HttpResponse<String> response = post("/api/users", createUserBody(), null, null);
 
         assertThat(response.statusCode()).isEqualTo(401);
         assertThat(response.headers().firstValue("WWW-Authenticate"))
