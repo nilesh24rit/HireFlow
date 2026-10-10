@@ -11,8 +11,7 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
 /**
- * Authentication behavior of the gateway (Step 13, checkpoint "integrate gateway
- * authentication").
+ * Authentication behavior of the gateway.
  *
  * <p>The gateway is a pass-through for credentials: it forwards the {@code Authorization}
  * header exactly as the client sent it and leaves every token decision — issuing,

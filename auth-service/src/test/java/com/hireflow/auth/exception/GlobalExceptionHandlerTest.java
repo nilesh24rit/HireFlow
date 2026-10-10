@@ -243,7 +243,7 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void mapsInvalidCredentialsToGenericUnauthorizedPayload() {
-        // The login failure is rendered through the same Step 9 contract with the generic
+        // The login failure is rendered through the same error contract with the generic
         // message carried by the exception — no email, password or hash can appear.
         MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/auth/login");
         request.setRequestURI("/api/auth/login");

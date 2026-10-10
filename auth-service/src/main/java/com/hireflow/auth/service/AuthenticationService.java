@@ -17,7 +17,7 @@ import com.hireflow.auth.security.IssuedAccessToken;
 import com.hireflow.auth.security.JwtService;
 
 /**
- * Credential verification for email-and-password login (Step 13).
+ * Credential verification for email-and-password login.
  *
  * <p>The account is looked up by email and the submitted password is verified against
  * the stored hash through Spring Security's {@link PasswordEncoder}. Every failure mode —

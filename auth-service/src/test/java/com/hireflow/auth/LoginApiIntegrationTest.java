@@ -33,9 +33,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
 
 /**
- * End-to-end credential login through the real filter chain (Step 13): the public
+ * End-to-end credential login through the real filter chain: the public
  * {@code POST /api/auth/login} endpoint exchanges verified credentials for a signed
- * access token, and rejections follow the Step 9 error contract with a generic message
+ * access token, and rejections follow the common HireFlow error contract with a generic message
  * that cannot reveal whether an email is registered.
  */
 @Testcontainers(disabledWithoutDocker = true)

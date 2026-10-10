@@ -34,8 +34,7 @@ import static org.springframework.security.test.web.servlet.setup.SecurityMockMv
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
 
 /**
- * The token contract job-service expects from auth-service (Step 13, checkpoint
- * "add jwt integration tests").
+ * The token contract job-service expects from auth-service.
  *
  * <p>{@code EndpointSecurityIntegrationTest} proves that endpoints are protected and that
  * expired, foreign-key and tampered tokens fail. This class pins the contract between the
@@ -46,7 +45,7 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppC
  *       {@code iat}, {@code exp} and the server-derived {@code role} — is accepted, so a
  *       token fresh from {@code POST /api/auth/login} will open this service;</li>
  *   <li>tokens auth-service would never issue — a foreign issuer, {@code alg=none}, or
- *       HS384 instead of HS256 — are rejected with the Step 9 401 contract and the
+ *       HS384 instead of HS256 — are rejected with the common HireFlow 401 contract and the
  *       {@code invalid_token} challenge, and the response never says which check failed.</li>
  * </ul>
  *

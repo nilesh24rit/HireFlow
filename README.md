@@ -58,7 +58,7 @@ credentials. Unmatched paths return `404`, an unreachable service returns a clea
 without stack traces, and every response produced by a service is passed through untouched.
 Gateway access logs record only route id, HTTP method, request path, and response status.
 
-The Step 13 login endpoint `POST /api/auth/login` is not part of this table: the route set
+The login endpoint `POST /api/auth/login` is not part of this table: the route set
 above is unchanged by the authentication work, so credential login is called directly
 against auth-service (`http://localhost:8081/api/auth/login`). Once a client holds an access
 token it is sent through the gateway on the routed paths above.
@@ -73,7 +73,7 @@ Security is a stateless bearer-JWT foundation:
 - **Credential login:** `POST /api/auth/login` with `{email, password}` is the only public
   endpoint in the platform. It answers `{accessToken, tokenType: "Bearer", expiresIn}` on
   success and a single generic `401` "Invalid email or password" for every failure — wrong
-  password, unknown email, and accounts created before Step 13 (no stored hash) are
+  password, unknown email, and accounts without a stored hash are
   indistinguishable, so the endpoint cannot be used to enumerate users. Passwords are stored
   as BCrypt hashes and are never returned, logged, or echoed.
 - **auth-service** issues tokens: subject is the user's UUID id, with `iat`, `exp`, issuer
@@ -84,7 +84,7 @@ Security is a stateless bearer-JWT foundation:
   algorithm (HS256), expiry and issuer are checked, the request carries no session or
   cookie, and `401`/`403` answer in the common error contract with a `Bearer` challenge
   (`error="invalid_token"` when a token was supplied and rejected). No role rules exist
-  yet — RBAC arrives in Step 15.
+  yet.
 - **CSRF policy:** authority never lives in a cookie or session — each request authenticates
   itself through the `Authorization` header — so every service runs with
   `SessionCreationPolicy.STATELESS` and CSRF protection is deliberately disabled, with the

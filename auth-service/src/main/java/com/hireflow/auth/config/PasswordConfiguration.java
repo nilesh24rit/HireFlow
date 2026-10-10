@@ -6,7 +6,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 /**
- * Password hashing for credential login (Step 13).
+ * Password hashing for credential login.
  *
  * <p>A {@link BCryptPasswordEncoder} is declared as an explicit bean so every place that
  * stores or verifies a password — user registration and credential verification — uses

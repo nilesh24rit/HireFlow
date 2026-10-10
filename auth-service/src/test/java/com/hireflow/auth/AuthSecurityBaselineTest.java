@@ -40,14 +40,13 @@ import com.nimbusds.jwt.SignedJWT;
  * instead of MockMvc, because the servlet container's error dispatch is part of the
  * observed behaviour and cannot be reproduced with MockMvc.
  *
- * <p>Since Step 13 the mechanism is stateless bearer JWT (HTTP Basic was the interim
- * mechanism of Step 12 and is gone). This baseline observes over real HTTP that:</p>
+ * <p>The authentication mechanism is stateless bearer JWT. This baseline observes over real HTTP that:</p>
  *
  * <ul>
  *   <li>the login endpoint is the only public route and issues verifiable tokens;</li>
  *   <li>protected routes accept a valid {@code Authorization: Bearer <token>} and reject
  *       everything else — no token, garbage, tampered, expired, or signed with another
- *       key — with the Step 9 401 contract, the {@code Bearer} challenge and, for failed
+ *       key — with the common HireFlow 401 contract, the {@code Bearer} challenge and, for failed
  *       tokens, {@code error="invalid_token"};</li>
  *   <li>rejected requests keep the ORIGINAL request path (no {@code /error} dispatch
  *       rewrites it), no session cookie is ever issued, and no form login page exists;</li>
@@ -224,7 +223,7 @@ class AuthSecurityBaselineTest {
     }
 
     /**
-     * Asserts the deliberate 401 shape: Step 9 error contract naming the original request
+     * Asserts the deliberate 401 shape: the common HireFlow error contract naming the original request
      * path, the expected challenge, and no stack traces, exception names or internals.
      */
     private void assertUnauthenticatedErrorContract(HttpResponse<String> response, String expectedPath,

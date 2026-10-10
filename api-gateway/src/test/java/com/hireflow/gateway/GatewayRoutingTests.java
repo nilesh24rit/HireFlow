@@ -132,7 +132,7 @@ class GatewayRoutingTests {
 
     @Test
     void passesSecurityResponsesThroughUntouched() {
-        // Step 13: the gateway performs no authentication, so a deliberate 401 from
+        // The gateway performs no authentication, so a deliberate 401 from
         // auth-service (error contract plus Bearer challenge) must reach the client as-is.
         client().get().uri("/api/users/security/401").exchange()
                 .expectStatus().isUnauthorized()

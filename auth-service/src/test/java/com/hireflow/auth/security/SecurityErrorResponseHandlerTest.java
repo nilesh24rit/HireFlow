@@ -15,10 +15,10 @@ import org.springframework.security.authentication.BadCredentialsException;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Unit tests of the deliberate security responses of Step 12.
+ * Unit tests of the deliberate security responses.
  *
- * <p>The 403 access-denied branch has no live trigger yet (role rules arrive with RBAC in
- * Step 15), so its exact shape — and the parts of the 401 branch that are hard to observe
+ * <p>The 403 access-denied branch has no live trigger yet (no role rules exist), so
+ * its exact shape — and the parts of the 401 branch that are hard to observe
  * from outside, such as correlation-id handling — are pinned here directly against the
  * servlet mocks. The live 401 behaviour over real HTTP is covered by
  * {@code AuthSecurityBaselineTest}, and the filter-chain behaviour by

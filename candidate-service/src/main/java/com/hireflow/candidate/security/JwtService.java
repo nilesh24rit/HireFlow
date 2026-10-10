@@ -16,7 +16,7 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 
 /**
- * Validation of HireFlow access tokens (Step 13).
+ * Validation of HireFlow access tokens.
  *
  * <p>Candidate-service does not issue tokens — auth-service does — but it verifies them
  * itself, so identity is never taken on trust from a header or from the gateway. This is

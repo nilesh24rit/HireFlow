@@ -34,13 +34,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
 
 /**
- * Endpoint protection for candidate-service (Step 13, checkpoint "protect service endpoints").
+ * Endpoint protection for candidate-service.
  *
- * <p>Before Step 13 this service had no security stack â€” every endpoint was reachable
- * anonymously. These tests observe the protected behaviour through the real filter chain:
+ * <p>These tests observe the protected behaviour through the real filter chain:
  * business endpoints under {@code /api/candidates} reject requests without a valid bearer token
- * using the shared Step 9 error contract, accept properly signed tokens (no CSRF token
- * required â€” the API is stateless), reject foreign, expired and tampered tokens, and the
+ * using the shared HireFlow error contract, accept properly signed tokens (no CSRF token
+ * required — the API is stateless), reject foreign, expired and tampered tokens, and the
  * API documentation stays public by deliberate policy.
  *
  * <p>All signing keys are the dedicated test-only keys of {@link TestSigningKeys}.

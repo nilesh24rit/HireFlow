@@ -20,7 +20,7 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 
 /**
- * Issues and validates HireFlow access tokens (Step 13).
+ * Issues and validates HireFlow access tokens.
  *
  * <p><b>Token design.</b> A compact, signed JWT (HS256) carrying only what services need:
  * {@code sub} — the stable user id (UUID), {@code iat}, {@code exp}, {@code iss}, and a

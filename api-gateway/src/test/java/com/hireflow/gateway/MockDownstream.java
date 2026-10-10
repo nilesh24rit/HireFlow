@@ -17,7 +17,7 @@ import com.sun.net.httpserver.HttpServer;
  * forwarded the request unchanged. A path segment {@code /error/<code>} makes the mock
  * respond with that status code so downstream status pass-through can be asserted, and a
  * path segment {@code /security/401} makes it emit a deliberate auth-service style 401
- * (Step 9 error contract plus {@code WWW-Authenticate}) so security-response pass-through
+ * (the common error contract plus {@code WWW-Authenticate}) so security-response pass-through
  * can be asserted. The {@code Authorization} header of every request is echoed back, so the
  * tests can prove bearer tokens cross the gateway verbatim.</p>
  */
@@ -79,8 +79,8 @@ final class MockDownstream {
     }
 
     /**
-     * Emulates the deliberate 401 of auth-service: the Step 9 error contract with the
-     * {@code Bearer} challenge of Step 13 — {@code error="invalid_token"} when a token was
+     * Emulates the deliberate 401 of auth-service: the common error contract with the
+     * {@code Bearer} challenge — {@code error="invalid_token"} when a token was
      * supplied and rejected — so that security-response pass-through can be asserted.
      */
     private void respondWithSecurityRejection(HttpExchange exchange, String path) throws IOException {

@@ -15,16 +15,14 @@ import com.hireflow.auth.security.SecurityErrorResponseHandler;
 /**
  * Explicit security configuration for auth-service.
  *
- * <p>Since Step 13 the authentication mechanism is stateless bearer JWT, replacing the
- * interim HTTP Basic of Step 12:
+ * <p>The authentication mechanism is stateless bearer JWT:
  *
  * <ul>
  *   <li><b>One public endpoint.</b> {@code POST /api/auth/login} is the only
  *       {@code permitAll} rule — it is how a caller exchanges credentials for a token.
  *       Every other endpoint requires authentication; there is no wildcard public access,
  *       so nothing can be exposed accidentally. Swagger ({@code /v3/api-docs},
- *       {@code /swagger-ui}) intentionally stays behind authentication, the policy Step 12
- *       established for this service.</li>
+ *       {@code /swagger-ui}) intentionally stays behind authentication.</li>
  *   <li><b>Bearer tokens are validated by {@link JwtAuthenticationFilter}.</b> It sits
  *       before {@link UsernamePasswordAuthenticationFilter}, accepts only
  *       {@code Authorization: Bearer <token>}, verifies the token with {@code JwtService}
@@ -38,15 +36,14 @@ import com.hireflow.auth.security.SecurityErrorResponseHandler;
  *       {@link SessionCreationPolicy#STATELESS} removes the session surface entirely, and
  *       no {@code JSESSIONID} is ever issued (asserted over real HTTP by
  *       {@code AuthSecurityBaselineTest}).</li>
- *   <li><b>Security responses follow the Step 9 error contract.</b> 401 and 403 are written
+ *   <li><b>Security responses follow the common HireFlow error contract.</b> 401 and 403 are written
  *       deliberately as {@code {timestamp, status, error, code, message, path}} JSON by
  *       {@link SecurityErrorResponseHandler}, with a {@code Bearer} challenge on 401 and
  *       no stack traces, claims or internal details anywhere.</li>
  * </ul>
  *
  * <p>Uses the {@code SecurityFilterChain} bean model rather than the deprecated
- * {@code WebSecurityConfigurerAdapter} style. Role-based endpoint rules belong to
- * Step 15; Google OAuth2 login to Step 14.
+ * {@code WebSecurityConfigurerAdapter} style.
  */
 @Configuration
 @EnableWebSecurity
@@ -83,7 +80,7 @@ public class SecurityConfiguration {
                         .anyRequest()
                         .authenticated())
                 // Authentication and access-denied responses are rendered deliberately in
-                // the Step 9 error contract instead of Spring Security's empty defaults.
+                // the common HireFlow error contract instead of Spring Security's empty defaults.
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint(securityErrorResponseHandler)
                         .accessDeniedHandler(securityErrorResponseHandler))

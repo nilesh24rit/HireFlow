@@ -20,7 +20,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 /**
- * Credential login endpoint (Step 13). The only unauthenticated entry point of the
+ * Credential login endpoint. The only unauthenticated entry point of the
  * service: it verifies email and password and, on success, issues a bearer access token.
  * It exposes no user record and never echoes the submitted credentials.
  */

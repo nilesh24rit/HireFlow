@@ -71,7 +71,7 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
-        <!-- JOSE/JWT support (Nimbus) for bearer-token validation of Step 13. This is the
+        <!-- JOSE/JWT support (Nimbus) for bearer-token validation. This is the
              only JWT library in the project; auth-service uses the same stack. -->
         <dependency>
             <groupId>org.springframework.security</groupId>

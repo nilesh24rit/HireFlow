@@ -13,10 +13,9 @@ import com.hireflow.application.security.JwtAuthenticationFilter;
 import com.hireflow.application.security.SecurityErrorResponseHandler;
 
 /**
- * Explicit security configuration for application-service (Step 13).
+ * Explicit security configuration for application-service.
  *
- * <p>Before Step 13 this service carried no security stack at all: every endpoint was
- * reachable anonymously. It now verifies bearer JWTs itself:
+ * <p>This service verifies bearer JWTs itself:
  *
  * <ul>
  *   <li><b>Business endpoints require authentication.</b> Every {@code /api/applications/**}
@@ -36,12 +35,12 @@ import com.hireflow.application.security.SecurityErrorResponseHandler;
  *       or session: it is proven per request by the bearer token, so there is no ambient
  *       browser credential a cross-site request could abuse. No session is created and no
  *       cookie is issued.</li>
- *   <li><b>Security responses follow the Step 9 error contract.</b> 401 and 403 are
+ *   <li><b>Security responses follow the common HireFlow error contract.</b> 401 and 403 are
  *       rendered deliberately by {@link SecurityErrorResponseHandler} — same JSON shape as
  *       application errors, no stack traces, claims or internal details.</li>
  * </ul>
  *
- * <p>No role-based rules here: endpoint-specific RBAC belongs to Step 15.</p>
+ * <p>No role-based rules here.</p>
  */
 @Configuration
 @EnableWebSecurity

@@ -22,7 +22,7 @@ import jakarta.servlet.http.HttpServletResponse;
 
 /**
  * Deliberate handling of the two responses Spring Security produces before any controller
- * runs, in the common HireFlow error contract of Step 9:
+ * runs, in the common HireFlow error contract:
  * {@code timestamp, status, error, code, message, path}.
  *
  * <p>Spring Security's defaults answer with an empty body. This handler keeps the same
@@ -38,13 +38,13 @@ import jakarta.servlet.http.HttpServletResponse;
  * Writing the response makes it final, so the status chosen here is the status the client
  * observes.
  *
- * <p>Since Step 13 the challenge is {@code Bearer}: a missing credential yields
+ * <p>The challenge is {@code Bearer}: a missing credential yields
  * {@code WWW-Authenticate: Bearer realm="HireFlow auth-service"} with the generic
  * "Authentication required" message, while a supplied token that failed validation (marked
  * by {@link JwtAuthenticationFilter}) yields {@code error="invalid_token"} and "Invalid or
  * expired authentication token" — still generic, and never echoing claims or crypto
  * detail. 403 carries no challenge: authentication succeeded, permission did not. No role
- * or permission rule lives here — RBAC belongs to Step 15.
+ * or permission rule lives here.
  */
 @Component
 public class SecurityErrorResponseHandler implements AuthenticationEntryPoint, AccessDeniedHandler {

@@ -20,8 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Focused unit tests for the JWT token service (Step 13, checkpoint "add jwt token
- * service"): claim design, round-trip validation, and rejection of expired, tampered,
+ * Focused unit tests for the JWT token service: claim design, round-trip validation, and rejection of expired, tampered,
  * wrongly signed, wrongly algorithmed and malformed tokens.
  *
  * <p>All keys here are the dedicated test-only keys of {@link TestSigningKeys}; no

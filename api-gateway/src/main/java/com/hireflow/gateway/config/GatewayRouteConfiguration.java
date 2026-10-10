@@ -20,7 +20,7 @@ import org.springframework.context.annotation.Configuration;
  * application-service /api/applications/**  -&gt; application-service
  * </pre>
  *
- * <p><b>Authentication (Step 13).</b> Routes carry no JWT filter and no signing key: the
+ * <p><b>Authentication.</b> Routes carry no JWT filter and no signing key: the
  * {@code Authorization} header is forwarded byte-for-byte, and the service behind the route
  * is the only component that validates a token. Duplicating validation here would give the
  * edge and the service two opinions about the same credential, and would force a secret to

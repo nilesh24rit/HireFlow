@@ -20,9 +20,9 @@ import jakarta.servlet.FilterChain;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Unit tests of the bearer-token filter (Step 13, checkpoint "add jwt security filter"):
- * the security context is populated only after successful validation, failures leave the
- * request unauthenticated but marked, and no path trusts anything but a verified token.
+ * Unit tests of the bearer-token filter: the security context is populated only after
+ * successful validation, failures leave the request unauthenticated but marked, and no
+ * path trusts anything but a verified token.
  *
  * <p>The context is observed <i>during</i> filter-chain execution (via a capturing chain),
  * because the filter deliberately clears the thread-bound context once the request

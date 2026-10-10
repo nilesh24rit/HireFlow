@@ -36,8 +36,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
 /**
- * The issued-token contract observed over real HTTP (Step 13, checkpoint "add jwt
- * integration tests").
+ * The issued-token contract observed over real HTTP.
  *
  * <p>{@code AuthSecurityBaselineTest} proves that a login token opens protected endpoints
  * and that garbage, tampered and expired tokens do not. This class pins down the token
@@ -49,7 +48,7 @@ import java.net.http.HttpResponse;
  *       the server-derived role — with a lifetime equal to the configured TTL;</li>
  *   <li>a token with a foreign issuer, an {@code alg=none} token, and a token signed with
  *       HS384 instead of HS256 are all rejected at the edge of the filter chain with the
- *       Step 9 401 contract and the {@code invalid_token} challenge, never with a 500 and
+ *       common HireFlow 401 contract and the {@code invalid_token} challenge, never with a 500 and
  *       never with a message that explains which check failed.</li>
  * </ul>
  *

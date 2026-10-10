@@ -39,7 +39,7 @@ import com.hireflow.auth.security.TestSigningKeys;
 /**
  * Security tests at the filter-chain level, through Spring Security's own test support
  * ({@code springSecurity()}), complementing {@code AuthSecurityBaselineTest} which
- * observes the same rules over real HTTP. Since Step 13 the mechanism is stateless
+ * observes the same rules over real HTTP. The authentication mechanism is stateless
  * bearer JWT:
  *
  * <ul>
@@ -57,8 +57,7 @@ import com.hireflow.auth.security.TestSigningKeys;
  *       rejected (the authenticated side is asserted by {@code OpenApiDocumentationTest}).</li>
  * </ul>
  *
- * <p>No {@code formLogin()} or session login is part of the chain; role rules arrive in
- * Step 15 and will extend the same chain.
+ * <p>No {@code formLogin()} or session login is part of the chain.
  */
 @Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest

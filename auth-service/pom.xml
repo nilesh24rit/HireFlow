@@ -76,8 +76,8 @@
             <artifactId>spring-boot-starter-oauth2-client</artifactId>
         </dependency>
         <!-- JOSE/JWT support (Nimbus). Already on the classpath transitively through the
-             oauth2-client starter; declared explicitly because the JWT service of Step 13
-             uses it directly. This is the only JWT library in the project. -->
+             oauth2-client starter; declared explicitly because JwtService uses it
+             directly. This is the only JWT library in the project. -->
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-oauth2-jose</artifactId>

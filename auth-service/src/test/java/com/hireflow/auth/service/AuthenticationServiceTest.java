@@ -28,8 +28,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Focused credential-verification tests (Step 13, checkpoint "add password
- * authentication"): correct credentials succeed, and every failure mode — unknown email,
+ * Focused credential-verification tests: correct credentials succeed, and every failure mode — unknown email,
  * legacy account without a hash, wrong password, disabled account — collapses into one
  * generic {@link InvalidCredentialsException} that reveals nothing about the account.
  */
@@ -86,7 +85,7 @@ class AuthenticationServiceTest {
 
     @Test
     void rejectsAccountWithoutPasswordHashLikeWrongPassword() {
-        // Rows created before Step 13 have no hash; they must fail like any other bad
+        // Rows without a stored hash must fail like any other bad
         // credential instead of authenticating or erroring differently.
         User legacyUser = enabledUser();
         legacyUser.setPasswordHash(null);

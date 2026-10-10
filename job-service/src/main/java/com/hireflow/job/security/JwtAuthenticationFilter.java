@@ -20,7 +20,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 /**
- * Stateless bearer-token authentication filter (Step 13).
+ * Stateless bearer-token authentication filter.
  *
  * <p>For every request:</p>
  * <ol>
