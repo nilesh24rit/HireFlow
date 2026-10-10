@@ -161,7 +161,7 @@ class SecurityConfigurationTest {
 
     private String createUserBody() {
         return """
-                {"email":"security-config-create-%s@example.com","firstName":"Security","lastName":"Create","role":"CANDIDATE"}
+                {"email":"security-config-create-%s@example.com","firstName":"Security","lastName":"Create","password":"Sup3r-Secret!","role":"CANDIDATE"}
                 """.formatted(UUID.randomUUID());
     }
 }

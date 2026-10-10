@@ -2,6 +2,7 @@ package com.hireflow.auth.service;
 
 import java.util.UUID;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,9 +18,11 @@ import com.hireflow.auth.repository.UserRepository;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional
@@ -31,6 +34,9 @@ public class UserService {
         user.setEmail(request.email());
         user.setFirstName(request.firstName());
         user.setLastName(request.lastName());
+        // Only the BCrypt hash is persisted; the raw password is discarded immediately
+        // and is never included in the response mapping below.
+        user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setRole(request.role());
         return toResponse(userRepository.saveAndFlush(user));
     }

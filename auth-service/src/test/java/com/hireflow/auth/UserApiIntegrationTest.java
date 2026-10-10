@@ -169,7 +169,11 @@ class UserApiIntegrationTest {
                 "{\"email\":\"invalid-1@example.com\",\"firstName\":\" \",\"lastName\":\"Doe\",\"role\":\"CANDIDATE\"}",
                 "{\"email\":\"invalid-2@example.com\",\"firstName\":\"Jane\",\"lastName\":\" \",\"role\":\"CANDIDATE\"}",
                 "{\"email\":\"invalid-3@example.com\",\"firstName\":\"Jane\",\"lastName\":\"Doe\"}",
-                "{\"email\":\"invalid-4@example.com\",\"firstName\":\"Jane\",\"lastName\":\"Doe\",\"role\":\"SUPER_ADMIN\"}");
+                "{\"email\":\"invalid-4@example.com\",\"firstName\":\"Jane\",\"lastName\":\"Doe\",\"role\":\"SUPER_ADMIN\"}",
+                // Registration must carry a password of acceptable length.
+                "{\"email\":\"invalid-5@example.com\",\"firstName\":\"Jane\",\"lastName\":\"Doe\",\"role\":\"CANDIDATE\"}",
+                "{\"email\":\"invalid-6@example.com\",\"firstName\":\"Jane\",\"lastName\":\"Doe\",\"password\":\" \",\"role\":\"CANDIDATE\"}",
+                "{\"email\":\"invalid-7@example.com\",\"firstName\":\"Jane\",\"lastName\":\"Doe\",\"password\":\"Sh0rt!\",\"role\":\"CANDIDATE\"}");
 
         for (String payload : invalidPayloads) {
             mockMvc.perform(post("/api/users")
@@ -179,6 +183,24 @@ class UserApiIntegrationTest {
                             .with(csrf()))
                     .andExpect(status().isBadRequest());
         }
+    }
+
+    @Test
+    void neverReturnsPasswordMaterialInCreateResponse() throws Exception {
+        String email = "no-password-leak-" + UUID.randomUUID() + "@example.com";
+
+        MvcResult result = mockMvc.perform(post("/api/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createUserBody(email, "Jane", "Doe", "CANDIDATE"))
+                        .with(user("api-test"))
+                        .with(csrf()))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        assertThat(result.getResponse().getContentAsString(StandardCharsets.UTF_8))
+                .doesNotContain("password")
+                .doesNotContain("Sup3r-Secret")
+                .doesNotContain("$2a$");
     }
 
     @Test
@@ -296,7 +318,7 @@ class UserApiIntegrationTest {
 
     private String createUserBody(String email, String firstName, String lastName, String role) {
         return """
-                {"email":"%s","firstName":"%s","lastName":"%s","role":"%s"}
+                {"email":"%s","firstName":"%s","lastName":"%s","password":"Sup3r-Secret!","role":"%s"}
                 """.formatted(email, firstName, lastName, role);
     }
 }

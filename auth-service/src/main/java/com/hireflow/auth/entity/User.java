@@ -35,6 +35,15 @@ public class User {
     @Column(nullable = false, length = 20)
     private UserRole role;
 
+    /**
+     * BCrypt hash of the user's password, or {@code null} for accounts created before
+     * password login existed (migration {@code V2} keeps the column nullable so those
+     * rows stay valid). Raw passwords are never stored; the hash is never exposed
+     * through any response DTO.
+     */
+    @Column(name = "password_hash", length = 100)
+    private String passwordHash;
+
     @Column(nullable = false)
     private boolean enabled = true;
 
@@ -90,6 +99,14 @@ public class User {
 
     public void setRole(UserRole role) {
         this.role = role;
+    }
+
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
     }
 
     public boolean isEnabled() {

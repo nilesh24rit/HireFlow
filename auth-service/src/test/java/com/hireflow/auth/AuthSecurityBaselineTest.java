@@ -260,7 +260,7 @@ class AuthSecurityBaselineTest {
 
     private String createUserBody() {
         return """
-                {"email":"baseline-create-%s@example.com","firstName":"Baseline","lastName":"Create","role":"CANDIDATE"}
+                {"email":"baseline-create-%s@example.com","firstName":"Baseline","lastName":"Create","password":"Sup3r-Secret!","role":"CANDIDATE"}
                 """.formatted(UUID.randomUUID());
     }
 }

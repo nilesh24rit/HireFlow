@@ -8,6 +8,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.junit.jupiter.Container;
@@ -43,6 +45,8 @@ class UserPersistenceIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @Test
     void persistsAndRetrievesUser() {
@@ -95,6 +99,36 @@ class UserPersistenceIntegrationTest {
         assertThat(reloaded.getFirstName()).isEqualTo("Updated");
         assertThat(reloaded.getUpdatedAt()).isAfter(agedTimestamp);
         assertThat(reloaded.getUpdatedAt().compareTo(reloaded.getCreatedAt())).isGreaterThanOrEqualTo(0);
+    }
+
+    @Test
+    void persistsOnlyThePasswordHash() {
+        User user = newUser("password-" + UUID.randomUUID() + "@example.com");
+        user.setPasswordHash(passwordEncoder.encode("Sup3r-Secret!"));
+        User saved = userRepository.saveAndFlush(user);
+
+        String stored = jdbcTemplate.queryForObject(
+                "SELECT password_hash FROM users WHERE id = ?", String.class, saved.getId());
+        assertThat(stored).startsWith("$2").isNotEqualTo("Sup3r-Secret!");
+
+        User reloaded = userRepository.findById(saved.getId()).orElseThrow();
+        assertThat(reloaded.getPasswordHash()).isEqualTo(saved.getPasswordHash());
+    }
+
+    @Test
+    void keepsUserRowsCreatedBeforeThePasswordMigration() {
+        // Simulates a row that existed before migration V2: password_hash stays NULL and
+        // the user record remains fully readable, so no existing user data is broken.
+        UUID id = UUID.randomUUID();
+        jdbcTemplate.update(
+                "INSERT INTO users (id, email, first_name, last_name, role, enabled, created_at, updated_at) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, now(), now())",
+                id, "legacy-" + id + "@example.com", "Legacy", "User", "CANDIDATE", true);
+
+        User reloaded = userRepository.findById(id).orElseThrow();
+
+        assertThat(reloaded.getEmail()).isEqualTo("legacy-" + id + "@example.com");
+        assertThat(reloaded.getPasswordHash()).isNull();
     }
 
     private User newUser(String email) {

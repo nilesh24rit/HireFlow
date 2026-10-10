@@ -16,77 +16,152 @@ class UserRequestValidationTest {
 
     private static final Validator VALIDATOR = Validation.buildDefaultValidatorFactory().getValidator();
 
+    private static final String VALID_PASSWORD = "Sup3r-Secret!";
+
+    private static CreateUserRequest createRequest(String email, String firstName, String lastName,
+            String password, UserRole role) {
+        return new CreateUserRequest(email, firstName, lastName, password, role);
+    }
+
+    private static CreateUserRequest validCreateRequest() {
+        return createRequest("jane@example.com", "Jane", "Doe", VALID_PASSWORD, UserRole.CANDIDATE);
+    }
+
     @Test
     void acceptsValidCreateUserRequest() {
-        CreateUserRequest request = new CreateUserRequest("jane@example.com", "Jane", "Doe", UserRole.CANDIDATE);
+        CreateUserRequest request = validCreateRequest();
 
         assertThat(VALIDATOR.validate(request)).isEmpty();
     }
 
     @Test
     void rejectsMissingEmail() {
-        CreateUserRequest request = new CreateUserRequest(null, "Jane", "Doe", UserRole.CANDIDATE);
+        CreateUserRequest request = createRequest(null, "Jane", "Doe", VALID_PASSWORD, UserRole.CANDIDATE);
 
         assertThat(violatedProperties(request)).contains("email");
     }
 
     @Test
     void rejectsBlankEmail() {
-        CreateUserRequest request = new CreateUserRequest("   ", "Jane", "Doe", UserRole.CANDIDATE);
+        CreateUserRequest request = createRequest("   ", "Jane", "Doe", VALID_PASSWORD, UserRole.CANDIDATE);
 
         assertThat(violatedProperties(request)).contains("email");
     }
 
     @Test
     void rejectsMalformedEmail() {
-        CreateUserRequest request = new CreateUserRequest("not-an-email", "Jane", "Doe", UserRole.CANDIDATE);
+        CreateUserRequest request = createRequest("not-an-email", "Jane", "Doe", VALID_PASSWORD, UserRole.CANDIDATE);
 
         assertThat(violatedProperties(request)).contains("email");
     }
 
     @Test
     void rejectsBlankFirstName() {
-        CreateUserRequest request = new CreateUserRequest("jane@example.com", " ", "Doe", UserRole.CANDIDATE);
+        CreateUserRequest request = createRequest("jane@example.com", " ", "Doe", VALID_PASSWORD, UserRole.CANDIDATE);
 
         assertThat(violatedProperties(request)).contains("firstName");
     }
 
     @Test
     void rejectsBlankLastName() {
-        CreateUserRequest request = new CreateUserRequest("jane@example.com", "Jane", " ", UserRole.CANDIDATE);
+        CreateUserRequest request = createRequest("jane@example.com", "Jane", " ", VALID_PASSWORD, UserRole.CANDIDATE);
 
         assertThat(violatedProperties(request)).contains("lastName");
     }
 
     @Test
+    void rejectsMissingPassword() {
+        CreateUserRequest request = createRequest("jane@example.com", "Jane", "Doe", null, UserRole.CANDIDATE);
+
+        assertThat(violatedProperties(request)).contains("password");
+    }
+
+    @Test
+    void rejectsBlankPassword() {
+        CreateUserRequest request = createRequest("jane@example.com", "Jane", "Doe", "   ", UserRole.CANDIDATE);
+
+        assertThat(violatedProperties(request)).contains("password");
+    }
+
+    @Test
+    void rejectsTooShortPassword() {
+        CreateUserRequest request = createRequest("jane@example.com", "Jane", "Doe", "Sh0rt!", UserRole.CANDIDATE);
+
+        assertThat(violatedProperties(request)).contains("password");
+    }
+
+    @Test
+    void rejectsOverlongPassword() {
+        CreateUserRequest request = createRequest(
+                "jane@example.com", "Jane", "Doe", "x".repeat(73), UserRole.CANDIDATE);
+
+        assertThat(violatedProperties(request)).contains("password");
+    }
+
+    @Test
     void rejectsMissingRole() {
-        CreateUserRequest request = new CreateUserRequest("jane@example.com", "Jane", "Doe", null);
+        CreateUserRequest request = createRequest("jane@example.com", "Jane", "Doe", VALID_PASSWORD, null);
 
         assertThat(violatedProperties(request)).contains("role");
     }
 
     @Test
     void rejectsOverlongEmail() {
-        CreateUserRequest request = new CreateUserRequest(
-                "a".repeat(309) + "@example.com", "Jane", "Doe", UserRole.CANDIDATE);
+        CreateUserRequest request = createRequest(
+                "a".repeat(309) + "@example.com", "Jane", "Doe", VALID_PASSWORD, UserRole.CANDIDATE);
 
         assertThat(violatedProperties(request)).contains("email");
     }
 
     @Test
     void rejectsOverlongFirstName() {
-        CreateUserRequest request = new CreateUserRequest(
-                "jane@example.com", "x".repeat(101), "Doe", UserRole.CANDIDATE);
+        CreateUserRequest request = createRequest(
+                "jane@example.com", "x".repeat(101), "Doe", VALID_PASSWORD, UserRole.CANDIDATE);
 
         assertThat(violatedProperties(request)).contains("firstName");
     }
 
     @Test
     void rejectsOverlongLastName() {
-        CreateUserRequest request = new CreateUserRequest(
-                "jane@example.com", "Jane", "x".repeat(101), UserRole.CANDIDATE);
+        CreateUserRequest request = createRequest(
+                "jane@example.com", "Jane", "x".repeat(101), VALID_PASSWORD, UserRole.CANDIDATE);
 
         assertThat(violatedProperties(request)).contains("lastName");
+    }
+
+    @Test
+    void neverExposesPasswordInToString() {
+        // Records generate a toString over every component; the explicit override must
+        // keep the raw password out of logs, debuggers and error messages.
+        assertThat(validCreateRequest().toString())
+                .doesNotContain(VALID_PASSWORD)
+                .contains("[PROTECTED]");
+    }
+
+    @Test
+    void acceptsValidLoginRequest() {
+        LoginRequest request = new LoginRequest("jane@example.com", VALID_PASSWORD);
+
+        assertThat(VALIDATOR.validate(request)).isEmpty();
+    }
+
+    @Test
+    void rejectsInvalidLoginRequests() {
+        assertThat(violatedProperties(new LoginRequest(null, VALID_PASSWORD))).contains("email");
+        assertThat(violatedProperties(new LoginRequest("   ", VALID_PASSWORD))).contains("email");
+        assertThat(violatedProperties(new LoginRequest("not-an-email", VALID_PASSWORD))).contains("email");
+        assertThat(violatedProperties(new LoginRequest("jane@example.com", null))).contains("password");
+        assertThat(violatedProperties(new LoginRequest("jane@example.com", "   "))).contains("password");
+        assertThat(violatedProperties(new LoginRequest("jane@example.com", "x".repeat(73)))).contains("password");
+    }
+
+    @Test
+    void neverExposesPasswordInLoginRequestToString() {
+        LoginRequest request = new LoginRequest("jane@example.com", VALID_PASSWORD);
+
+        assertThat(request.toString())
+                .doesNotContain(VALID_PASSWORD)
+                .contains("[PROTECTED]");
     }
 
     @Test

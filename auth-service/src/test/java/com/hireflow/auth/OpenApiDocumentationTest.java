@@ -113,10 +113,25 @@ class OpenApiDocumentationTest {
                 .andExpect(jsonPath("$.components.schemas.UserResponse").exists())
                 .andExpect(jsonPath("$.components.schemas.UserRole").exists())
                 .andExpect(jsonPath("$.components.schemas.UserRole.enum[0]").value("CANDIDATE"));
+    }
+
+    @Test
+    void documentsPasswordAsWriteOnlyAndNeverInResponses() throws Exception {
+        // The registration payload documents its password input as write-only, and no
+        // response schema may carry password material of any kind.
+        mockMvc.perform(get("/v3/api-docs").with(user("openapi-test")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.components.schemas.CreateUserRequest.properties.password").exists())
+                .andExpect(jsonPath("$.components.schemas.CreateUserRequest.properties.password.writeOnly")
+                        .value(true))
+                .andExpect(jsonPath("$.components.schemas.UserResponse.properties.password").doesNotExist())
+                .andExpect(jsonPath("$.components.schemas.UserResponse.properties.passwordHash").doesNotExist());
 
         mockMvc.perform(get("/v3/api-docs").with(user("openapi-test")))
                 .andExpect(status().isOk())
                 .andExpect(result -> assertThat(result.getResponse().getContentAsString())
-                        .doesNotContain("password"));
+                        .doesNotContain("passwordHash")
+                        .doesNotContain("$2a$")
+                        .doesNotContain("Sup3r-Secret"));
     }
 }

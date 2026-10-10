@@ -26,8 +26,25 @@ public record CreateUserRequest(
         @Schema(description = "Last name of the user",
                 requiredMode = Schema.RequiredMode.REQUIRED, example = "Doe")
         String lastName,
+        @NotBlank(message = "password must not be blank")
+        @Size(min = 8, max = 72, message = "password must be between 8 and 72 characters")
+        @Schema(description = "Initial password for email-and-password login. "
+                + "Stored only as a BCrypt hash; never returned by any endpoint.",
+                accessMode = Schema.AccessMode.WRITE_ONLY,
+                requiredMode = Schema.RequiredMode.REQUIRED, example = "S3cure-Pass!")
+        String password,
         @NotNull(message = "role must not be null")
         @Schema(description = "Role assigned to the user",
                 requiredMode = Schema.RequiredMode.REQUIRED, example = "CANDIDATE")
         UserRole role) {
+
+    /**
+     * Explicit {@code toString} so a {@link CreateUserRequest} can never leak the raw
+     * password into logs, debuggers or error messages. Passwords are excluded, never masked.
+     */
+    @Override
+    public String toString() {
+        return "CreateUserRequest[email=" + email + ", firstName=" + firstName
+                + ", lastName=" + lastName + ", password=[PROTECTED], role=" + role + "]";
+    }
 }

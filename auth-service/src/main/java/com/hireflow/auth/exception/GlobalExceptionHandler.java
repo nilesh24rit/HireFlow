@@ -96,6 +96,17 @@ public class GlobalExceptionHandler {
         return respond(HttpStatus.BAD_REQUEST, ErrorCode.INVALID_REQUEST, ex.getMessage(), request, null);
     }
 
+    /**
+     * Maps rejected login credentials onto {@code 401 Unauthorized} using the same
+     * generic message for every failure mode, so the response never reveals whether
+     * an email address is registered.
+     */
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidCredentials(InvalidCredentialsException ex,
+            HttpServletRequest request) {
+        return respond(HttpStatus.UNAUTHORIZED, ErrorCode.UNAUTHENTICATED, ex.getMessage(), request, null);
+    }
+
     // ------------------------------------------------------------------
     // Request validation and malformed input
     // ------------------------------------------------------------------

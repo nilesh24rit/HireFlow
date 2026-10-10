@@ -14,8 +14,13 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import com.hireflow.auth.controller.UserController;
 import com.hireflow.auth.dto.CreateUserRequest;
+import com.hireflow.auth.error.ApiErrorResponse;
+import com.hireflow.auth.error.ErrorCode;
 import com.hireflow.auth.service.UserService;
 import com.jayway.jsonpath.JsonPath;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockHttpServletRequest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -233,6 +238,24 @@ class GlobalExceptionHandlerTest {
 
     private String createUserBody() {
         return "{\"email\":\"jane@example.com\",\"firstName\":\"Jane\","
-                + "\"lastName\":\"Doe\",\"role\":\"CANDIDATE\"}";
+                + "\"lastName\":\"Doe\",\"password\":\"Sup3r-Secret!\",\"role\":\"CANDIDATE\"}";
+    }
+
+    @Test
+    void mapsInvalidCredentialsToGenericUnauthorizedPayload() {
+        // The login failure is rendered through the same Step 9 contract with the generic
+        // message carried by the exception — no email, password or hash can appear.
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/auth/login");
+        request.setRequestURI("/api/auth/login");
+
+        ResponseEntity<ApiErrorResponse> response = new GlobalExceptionHandler()
+                .handleInvalidCredentials(new InvalidCredentialsException("Invalid email or password"), request);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(401);
+        assertThat(response.getBody().status()).isEqualTo(401);
+        assertThat(response.getBody().error()).isEqualTo("Unauthorized");
+        assertThat(response.getBody().code()).isEqualTo(ErrorCode.UNAUTHENTICATED);
+        assertThat(response.getBody().message()).isEqualTo("Invalid email or password");
+        assertThat(response.getBody().path()).isEqualTo("/api/auth/login");
     }
 }

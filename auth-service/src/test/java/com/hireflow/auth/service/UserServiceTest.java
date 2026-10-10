@@ -6,9 +6,12 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.hireflow.auth.dto.CreateUserRequest;
 import com.hireflow.auth.dto.UpdateUserRequest;
@@ -29,19 +32,24 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
 
+    private static final String RAW_PASSWORD = "Sup3r-Secret!";
+
     @Mock
     private UserRepository userRepository;
 
+    private PasswordEncoder passwordEncoder;
     private UserService userService;
 
     @BeforeEach
     void setUp() {
-        userService = new UserService(userRepository);
+        passwordEncoder = new BCryptPasswordEncoder();
+        userService = new UserService(userRepository, passwordEncoder);
     }
 
     @Test
     void createsUserSuccessfully() {
-        CreateUserRequest request = new CreateUserRequest("jane@example.com", "Jane", "Doe", UserRole.CANDIDATE);
+        CreateUserRequest request = new CreateUserRequest(
+                "jane@example.com", "Jane", "Doe", RAW_PASSWORD, UserRole.CANDIDATE);
         when(userRepository.existsByEmail("jane@example.com")).thenReturn(false);
         when(userRepository.saveAndFlush(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -57,8 +65,25 @@ class UserServiceTest {
     }
 
     @Test
+    void storesOnlyABcryptHashOfThePassword() {
+        CreateUserRequest request = new CreateUserRequest(
+                "jane@example.com", "Jane", "Doe", RAW_PASSWORD, UserRole.CANDIDATE);
+        when(userRepository.existsByEmail("jane@example.com")).thenReturn(false);
+        when(userRepository.saveAndFlush(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        userService.createUser(request);
+
+        ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).saveAndFlush(saved.capture());
+        String storedHash = saved.getValue().getPasswordHash();
+        assertThat(storedHash).startsWith("$2").isNotEqualTo(RAW_PASSWORD).doesNotContain(RAW_PASSWORD);
+        assertThat(passwordEncoder.matches(RAW_PASSWORD, storedHash)).isTrue();
+    }
+
+    @Test
     void rejectsDuplicateEmailBeforeSaving() {
-        CreateUserRequest request = new CreateUserRequest("jane@example.com", "Jane", "Doe", UserRole.CANDIDATE);
+        CreateUserRequest request = new CreateUserRequest(
+                "jane@example.com", "Jane", "Doe", RAW_PASSWORD, UserRole.CANDIDATE);
         when(userRepository.existsByEmail("jane@example.com")).thenReturn(true);
 
         assertThatThrownBy(() -> userService.createUser(request))
@@ -70,7 +95,8 @@ class UserServiceTest {
 
     @Test
     void propagatesDatabaseConstraintViolationForGlobalHandling() {
-        CreateUserRequest request = new CreateUserRequest("jane@example.com", "Jane", "Doe", UserRole.CANDIDATE);
+        CreateUserRequest request = new CreateUserRequest(
+                "jane@example.com", "Jane", "Doe", RAW_PASSWORD, UserRole.CANDIDATE);
         when(userRepository.existsByEmail("jane@example.com")).thenReturn(false);
         when(userRepository.saveAndFlush(any(User.class)))
                 .thenThrow(new DataIntegrityViolationException("uk_users_email"));
