@@ -58,36 +58,58 @@ credentials. Unmatched paths return `404`, an unreachable service returns a clea
 without stack traces, and every response produced by a service is passed through untouched.
 Gateway access logs record only route id, HTTP method, request path, and response status.
 
+The Step 13 login endpoint `POST /api/auth/login` is not part of this table: the route set
+above is unchanged by the authentication work, so credential login is called directly
+against auth-service (`http://localhost:8081/api/auth/login`). Once a client holds an access
+token it is sent through the gateway on the routed paths above.
+
 Swagger/OpenAPI stays on the services themselves and is unaffected by the gateway:
 `http://localhost:<service-port>/v3/api-docs` and `/swagger-ui.html`.
 
 ## Security
 
-Security is a stateless, header-authenticated foundation (JWT arrives in a later step):
+Security is a stateless bearer-JWT foundation:
 
-- **auth-service** holds the platform's only `SecurityFilterChain`: every endpoint requires
-  authentication, currently over HTTP Basic. There is no form login, no session-based login,
-  and no public endpoint — Swagger included, which answers `401` until credentials are sent.
+- **Credential login:** `POST /api/auth/login` with `{email, password}` is the only public
+  endpoint in the platform. It answers `{accessToken, tokenType: "Bearer", expiresIn}` on
+  success and a single generic `401` "Invalid email or password" for every failure — wrong
+  password, unknown email, and accounts created before Step 13 (no stored hash) are
+  indistinguishable, so the endpoint cannot be used to enumerate users. Passwords are stored
+  as BCrypt hashes and are never returned, logged, or echoed.
+- **auth-service** issues tokens: subject is the user's UUID id, with `iat`, `exp`, issuer
+  (`hireflow-auth`) and a server-derived role claim. The signing key comes from
+  `hireflow.jwt.signing-key` (env `HIREFLOW_JWT_SIGNINGKEY`); the application fails at
+  startup when it is missing, and no key is hardcoded anywhere.
+- **All four services validate tokens** through the same stateless filter: signature,
+  algorithm (HS256), expiry and issuer are checked, the request carries no session or
+  cookie, and `401`/`403` answer in the common error contract with a `Bearer` challenge
+  (`error="invalid_token"` when a token was supplied and rejected). No role rules exist
+  yet — RBAC arrives in Step 15.
 - **CSRF policy:** authority never lives in a cookie or session — each request authenticates
-  itself through the `Authorization` header — so auth-service runs with
+  itself through the `Authorization` header — so every service runs with
   `SessionCreationPolicy.STATELESS` and CSRF protection is deliberately disabled, with the
-  reasoning documented in `SecurityConfiguration`. The other REST services carry no security
-  stack, sessions, or cookies, so there is no CSRF surface to remove or preserve there.
+  reasoning documented in `SecurityConfiguration`.
 - **Security responses** use the common error contract: `401` and `403` answer
   `{timestamp, status, error, code, message, path}` with the `UNAUTHENTICATED`/`FORBIDDEN`
-  codes, `401` keeps its `WWW-Authenticate` challenge, and no stack traces or internal
-  details are exposed. Responses are written directly, so no error dispatch can rewrite a
-  status or path.
-- **The gateway performs no authentication.** It only routes, so behavior is identical
-  direct and through the gateway, and `401` responses from auth-service pass through
-  untouched.
+  codes, `401` keeps its `WWW-Authenticate` challenge, and no stack traces, claims, or
+  internal details are exposed. Responses are written directly, so no error dispatch can
+  rewrite a status or path.
+- **The gateway performs no authentication.** It forwards the `Authorization` header
+  byte-for-byte and validates nothing itself: token validation happens only in the service
+  behind the route, so behavior is identical direct and through the gateway, and `401`
+  responses (including `invalid_token` rejections) pass through untouched. This keeps the
+  gateway free of signing keys and keeps edge and service from ever disagreeing about a
+  credential.
 - No health endpoint is exposed (no actuator dependency in any service).
 
 | Check | auth-service (8081) | candidate/job/application | via gateway (8080) |
 | --- | --- | --- | --- |
-| Request without credentials | `401` + error contract | not applicable (no auth stack) | `401` passthrough |
-| `GET /api/users/{id}` with credentials | `200` | — | `200`, byte-identical body |
-| Create via `POST` (no CSRF token) | `201` with credentials | `201` (public) | `201` |
-| `/v3/api-docs`, `/swagger-ui.html` | `401` → `200` with credentials | `200` (public) | — |
+| `POST /api/auth/login` with valid credentials | `200` + access token | — | — |
+| `POST /api/auth/login` with bad credentials | `401` generic message | — | — |
+| Request without a token | `401` + error contract | `401` + error contract | `401` passthrough |
+| Request with an invalid/expired token | `401` `invalid_token` | `401` `invalid_token` | `401` passthrough |
+| `GET /api/users/{id}` with a valid token | `200` | — | `200`, byte-identical body |
+| Create via `POST` (no CSRF token) | `201` with a token | `201` with a token | `201` |
+| `/v3/api-docs`, `/swagger-ui.html` | `401` → `200` with a token | `200` (public) | — |
 | `/actuator/health` | not present (`404`) | not present (`404`) | — |
 

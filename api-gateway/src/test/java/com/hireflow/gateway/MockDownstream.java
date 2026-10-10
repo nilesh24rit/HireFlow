@@ -18,7 +18,8 @@ import com.sun.net.httpserver.HttpServer;
  * respond with that status code so downstream status pass-through can be asserted, and a
  * path segment {@code /security/401} makes it emit a deliberate auth-service style 401
  * (Step 9 error contract plus {@code WWW-Authenticate}) so security-response pass-through
- * can be asserted.</p>
+ * can be asserted. The {@code Authorization} header of every request is echoed back, so the
+ * tests can prove bearer tokens cross the gateway verbatim.</p>
  */
 final class MockDownstream {
 
@@ -66,6 +67,7 @@ final class MockDownstream {
                         + "|method=" + exchange.getRequestMethod()
                         + "|path=" + path
                         + "|query=" + (query != null ? query : "")
+                        + "|authorization=" + authorization(exchange)
                         + "|body=" + requestBody
                 : "downstream-error " + status;
 
@@ -77,19 +79,36 @@ final class MockDownstream {
     }
 
     /**
-     * Emulates the deliberate 401 of auth-service: the Step 9 error contract with the HTTP
-     * Basic challenge, so that security-response pass-through can be asserted.
+     * Emulates the deliberate 401 of auth-service: the Step 9 error contract with the
+     * {@code Bearer} challenge of Step 13 — {@code error="invalid_token"} when a token was
+     * supplied and rejected — so that security-response pass-through can be asserted.
      */
     private void respondWithSecurityRejection(HttpExchange exchange, String path) throws IOException {
+        boolean invalidToken = exchange.getRequestHeaders().getFirst("Authorization") != null;
+        String message = invalidToken
+                ? "Invalid or expired authentication token"
+                : "Authentication required";
+        String challenge = invalidToken
+                ? "Bearer realm=\"Mock auth-service\", error=\"invalid_token\""
+                : "Bearer realm=\"Mock auth-service\"";
         String body = "{\"timestamp\":\"2026-01-01T00:00:00Z\",\"status\":401,\"error\":\"Unauthorized\","
-                + "\"code\":\"UNAUTHENTICATED\",\"message\":\"Authentication required\",\"path\":\"" + path + "\"}";
+                + "\"code\":\"UNAUTHENTICATED\",\"message\":\"" + message + "\",\"path\":\"" + path + "\"}";
         byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
         exchange.getResponseHeaders().set("Content-Type", "application/json");
-        exchange.getResponseHeaders().set("WWW-Authenticate",
-                "Basic realm=\"Mock auth-service\", charset=\"UTF-8\"");
+        exchange.getResponseHeaders().set("WWW-Authenticate", challenge);
         exchange.sendResponseHeaders(401, bytes.length);
         exchange.getResponseBody().write(bytes);
         exchange.close();
+    }
+
+    /**
+     * The {@code Authorization} header exactly as the gateway forwarded it, or
+     * {@code absent} when the client sent none. This is what lets the routing tests prove
+     * that bearer tokens cross the gateway untouched.
+     */
+    private static String authorization(HttpExchange exchange) {
+        String header = exchange.getRequestHeaders().getFirst("Authorization");
+        return header != null ? header : "absent";
     }
 
     private static int downstreamStatus(String path) {
