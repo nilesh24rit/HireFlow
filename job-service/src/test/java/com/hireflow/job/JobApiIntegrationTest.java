@@ -1,5 +1,7 @@
 package com.hireflow.job;
 
+import com.hireflow.job.security.TestSigningKeys;
+
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
@@ -12,6 +14,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.context.WebApplicationContext;
 import org.testcontainers.junit.jupiter.Container;
@@ -30,6 +33,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -52,6 +57,8 @@ class JobApiIntegrationTest {
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
+        // Test-only JWT signing key; JwtService refuses to start without one.
+        registry.add("hireflow.jwt.signing-key", () -> TestSigningKeys.VALID);
     }
 
     @Autowired
@@ -67,16 +74,18 @@ class JobApiIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = webAppContextSetup(webApplicationContext).build();
+        mockMvc = webAppContextSetup(webApplicationContext)
+                .apply(springSecurity())
+                .build();
     }
 
     @Test
     void createsJob() throws Exception {
         UUID recruiterId = UUID.randomUUID();
 
-        mockMvc.perform(post("/api/jobs")
+        mockMvc.perform(authenticated(post("/api/jobs")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(createBody(recruiterId)))
+                        .content(createBody(recruiterId))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").exists())
                 .andExpect(jsonPath("$.recruiterId").value(recruiterId.toString()))
@@ -98,9 +107,9 @@ class JobApiIntegrationTest {
     void returnsLocationHeaderOnCreate() throws Exception {
         UUID recruiterId = UUID.randomUUID();
 
-        MvcResult result = mockMvc.perform(post("/api/jobs")
+        MvcResult result = mockMvc.perform(authenticated(post("/api/jobs")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(createBody(recruiterId)))
+                        .content(createBody(recruiterId))))
                 .andExpect(status().isCreated())
                 .andReturn();
 
@@ -111,9 +120,9 @@ class JobApiIntegrationTest {
 
     @Test
     void rejectsNonJsonCreatePayload() throws Exception {
-        mockMvc.perform(post("/api/jobs")
+        mockMvc.perform(authenticated(post("/api/jobs")
                         .contentType(MediaType.TEXT_PLAIN)
-                        .content("not json"))
+                        .content("not json")))
                 .andExpect(status().isUnsupportedMediaType());
     }
 
@@ -140,9 +149,9 @@ class JobApiIntegrationTest {
                         + "\"employmentType\":\"FULL_TIME\",\"status\":\"UNKNOWN\"}");
 
         for (String payload : invalidPayloads) {
-            mockMvc.perform(post("/api/jobs")
+            mockMvc.perform(authenticated(post("/api/jobs")
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(payload))
+                            .content(payload)))
                     .andExpect(status().isBadRequest());
         }
     }
@@ -151,7 +160,7 @@ class JobApiIntegrationTest {
     void getJobById() throws Exception {
         Job job = seedJob(UUID.randomUUID());
 
-        mockMvc.perform(get("/api/jobs/{id}", job.getId()))
+        mockMvc.perform(authenticated(get("/api/jobs/{id}", job.getId())))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").value(job.getId().toString()))
@@ -163,13 +172,13 @@ class JobApiIntegrationTest {
 
     @Test
     void returnsNotFoundForUnknownJobId() throws Exception {
-        mockMvc.perform(get("/api/jobs/{id}", UUID.randomUUID()))
+        mockMvc.perform(authenticated(get("/api/jobs/{id}", UUID.randomUUID())))
                 .andExpect(status().isNotFound());
     }
 
     @Test
     void returnsBadRequestForMalformedJobId() throws Exception {
-        mockMvc.perform(get("/api/jobs/{id}", "not-a-uuid"))
+        mockMvc.perform(authenticated(get("/api/jobs/{id}", "not-a-uuid")))
                 .andExpect(status().isBadRequest());
     }
 
@@ -180,7 +189,7 @@ class JobApiIntegrationTest {
         Job second = seedJob(recruiterId);
         seedJob(UUID.randomUUID());
 
-        mockMvc.perform(get("/api/jobs/recruiter/{recruiterId}", recruiterId))
+        mockMvc.perform(authenticated(get("/api/jobs/recruiter/{recruiterId}", recruiterId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[*].id").value(containsInAnyOrder(
@@ -189,14 +198,14 @@ class JobApiIntegrationTest {
 
     @Test
     void returnsEmptyListForRecruiterWithoutJobs() throws Exception {
-        mockMvc.perform(get("/api/jobs/recruiter/{recruiterId}", UUID.randomUUID()))
+        mockMvc.perform(authenticated(get("/api/jobs/recruiter/{recruiterId}", UUID.randomUUID())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
     }
 
     @Test
     void returnsBadRequestForMalformedRecruiterId() throws Exception {
-        mockMvc.perform(get("/api/jobs/recruiter/{recruiterId}", "not-a-uuid"))
+        mockMvc.perform(authenticated(get("/api/jobs/recruiter/{recruiterId}", "not-a-uuid")))
                 .andExpect(status().isBadRequest());
     }
 
@@ -207,9 +216,9 @@ class JobApiIntegrationTest {
                 {"title":"Staff Java Developer","location":"Munich","status":"CLOSED","skills":["Kafka","Docker"]}
                 """;
 
-        mockMvc.perform(put("/api/jobs/{id}", job.getId())
+        mockMvc.perform(authenticated(put("/api/jobs/{id}", job.getId())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(payload))
+                        .content(payload)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value("Staff Java Developer"))
                 .andExpect(jsonPath("$.location").value("Munich"))
@@ -230,9 +239,9 @@ class JobApiIntegrationTest {
 
     @Test
     void returnsNotFoundWhenUpdatingUnknownJob() throws Exception {
-        mockMvc.perform(put("/api/jobs/{id}", UUID.randomUUID())
+        mockMvc.perform(authenticated(put("/api/jobs/{id}", UUID.randomUUID())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"title\":\"Staff Java Developer\"}"))
+                        .content("{\"title\":\"Staff Java Developer\"}")))
                 .andExpect(status().isNotFound());
     }
 
@@ -240,9 +249,9 @@ class JobApiIntegrationTest {
     void rejectsInvalidUpdatePayload() throws Exception {
         Job job = seedJob(UUID.randomUUID());
 
-        mockMvc.perform(put("/api/jobs/{id}", job.getId())
+        mockMvc.perform(authenticated(put("/api/jobs/{id}", job.getId())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"experienceMin\":-2,\"skills\":[\"Java\",\" \"]}"))
+                        .content("{\"experienceMin\":-2,\"skills\":[\"Java\",\" \"]}")))
                 .andExpect(status().isBadRequest());
     }
 
@@ -250,9 +259,9 @@ class JobApiIntegrationTest {
     void rejectsUpdateViolatingExistingRange() throws Exception {
         Job job = seedJob(UUID.randomUUID());
 
-        mockMvc.perform(put("/api/jobs/{id}", job.getId())
+        mockMvc.perform(authenticated(put("/api/jobs/{id}", job.getId())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"experienceMin\":10}"))
+                        .content("{\"experienceMin\":10}")))
                 .andExpect(status().isBadRequest());
     }
 
@@ -260,19 +269,19 @@ class JobApiIntegrationTest {
     void deletesJob() throws Exception {
         Job job = seedJob(UUID.randomUUID());
 
-        mockMvc.perform(delete("/api/jobs/{id}", job.getId()))
+        mockMvc.perform(authenticated(delete("/api/jobs/{id}", job.getId())))
                 .andExpect(status().isNoContent());
 
         assertThat(jobRepository.findById(job.getId())).isEmpty();
         assertThat(jobSkillRepository.findByJobId(job.getId())).isEmpty();
 
-        mockMvc.perform(get("/api/jobs/{id}", job.getId()))
+        mockMvc.perform(authenticated(get("/api/jobs/{id}", job.getId())))
                 .andExpect(status().isNotFound());
     }
 
     @Test
     void returnsNotFoundWhenDeletingUnknownJob() throws Exception {
-        mockMvc.perform(delete("/api/jobs/{id}", UUID.randomUUID()))
+        mockMvc.perform(authenticated(delete("/api/jobs/{id}", UUID.randomUUID())))
                 .andExpect(status().isNotFound());
     }
 
@@ -308,5 +317,10 @@ class JobApiIntegrationTest {
                 "employmentType":"FULL_TIME","experienceMin":3,"experienceMax":6,
                 "salaryMin":60000,"salaryMax":90000,"skills":["Java","Spring"]}
                 """.formatted(recruiterId);
+    }
+
+    /** Every business endpoint requires a valid bearer token; tests authenticate explicitly. */
+    private MockHttpServletRequestBuilder authenticated(MockHttpServletRequestBuilder request) {
+        return request.with(jwt());
     }
 }

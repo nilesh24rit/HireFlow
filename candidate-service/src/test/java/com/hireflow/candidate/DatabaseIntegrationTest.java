@@ -1,5 +1,7 @@
 package com.hireflow.candidate;
 
+import com.hireflow.candidate.security.TestSigningKeys;
+
 import java.sql.Connection;
 import java.sql.SQLException;
 
@@ -35,6 +37,8 @@ class DatabaseIntegrationTest {
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
+        // Test-only JWT signing key; JwtService refuses to start without one.
+        registry.add("hireflow.jwt.signing-key", () -> TestSigningKeys.VALID);
     }
 
     @Autowired

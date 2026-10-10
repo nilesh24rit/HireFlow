@@ -1,4 +1,4 @@
-package com.hireflow.auth.security;
+package com.hireflow.candidate.security;
 
 import java.util.List;
 import java.util.UUID;

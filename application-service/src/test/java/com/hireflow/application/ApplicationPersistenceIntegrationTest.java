@@ -1,5 +1,7 @@
 package com.hireflow.application;
 
+import com.hireflow.application.security.TestSigningKeys;
+
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -38,6 +40,8 @@ class ApplicationPersistenceIntegrationTest {
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
+        // Test-only JWT signing key; JwtService refuses to start without one.
+        registry.add("hireflow.jwt.signing-key", () -> TestSigningKeys.VALID);
     }
 
     @Autowired

@@ -1,5 +1,7 @@
 package com.hireflow.candidate;
 
+import com.hireflow.candidate.security.TestSigningKeys;
+
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
@@ -12,6 +14,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.web.context.WebApplicationContext;
 import org.testcontainers.junit.jupiter.Container;
@@ -27,6 +30,8 @@ import com.jayway.jsonpath.JsonPath;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -49,6 +54,8 @@ class CandidateApiIntegrationTest {
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
+        // Test-only JWT signing key; JwtService refuses to start without one.
+        registry.add("hireflow.jwt.signing-key", () -> TestSigningKeys.VALID);
     }
 
     @Autowired
@@ -64,16 +71,18 @@ class CandidateApiIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = webAppContextSetup(webApplicationContext).build();
+        mockMvc = webAppContextSetup(webApplicationContext)
+                .apply(springSecurity())
+                .build();
     }
 
     @Test
     void createsCandidate() throws Exception {
         UUID userId = UUID.randomUUID();
 
-        mockMvc.perform(post("/api/candidates")
+        mockMvc.perform(authenticated(post("/api/candidates")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(createBody(userId)))
+                        .content(createBody(userId))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").exists())
                 .andExpect(jsonPath("$.userId").value(userId.toString()))
@@ -90,9 +99,9 @@ class CandidateApiIntegrationTest {
     void returnsLocationHeaderOnCreate() throws Exception {
         UUID userId = UUID.randomUUID();
 
-        MvcResult result = mockMvc.perform(post("/api/candidates")
+        MvcResult result = mockMvc.perform(authenticated(post("/api/candidates")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(createBody(userId)))
+                        .content(createBody(userId))))
                 .andExpect(status().isCreated())
                 .andReturn();
 
@@ -103,21 +112,21 @@ class CandidateApiIntegrationTest {
 
     @Test
     void rejectsNonJsonCreatePayload() throws Exception {
-        mockMvc.perform(post("/api/candidates")
+        mockMvc.perform(authenticated(post("/api/candidates")
                         .contentType(MediaType.TEXT_PLAIN)
-                        .content("not json"))
+                        .content("not json")))
                 .andExpect(status().isUnsupportedMediaType());
     }
 
     @Test
     void returnsBadRequestForMalformedCandidateId() throws Exception {
-        mockMvc.perform(get("/api/candidates/{id}", "not-a-uuid"))
+        mockMvc.perform(authenticated(get("/api/candidates/{id}", "not-a-uuid")))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     void returnsBadRequestForMalformedUserIdLookup() throws Exception {
-        mockMvc.perform(get("/api/candidates/user/{userId}", "not-a-uuid"))
+        mockMvc.perform(authenticated(get("/api/candidates/user/{userId}", "not-a-uuid")))
                 .andExpect(status().isBadRequest());
     }
 
@@ -126,9 +135,9 @@ class CandidateApiIntegrationTest {
         UUID userId = UUID.randomUUID();
         seedCandidate(userId);
 
-        mockMvc.perform(post("/api/candidates")
+        mockMvc.perform(authenticated(post("/api/candidates")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(createBody(userId)))
+                        .content(createBody(userId))))
                 .andExpect(status().isConflict());
     }
 
@@ -142,9 +151,9 @@ class CandidateApiIntegrationTest {
                 "{\"userId\":\"" + UUID.randomUUID() + "\",\"headline\":\"" + "x".repeat(201) + "\"}");
 
         for (String payload : invalidPayloads) {
-            mockMvc.perform(post("/api/candidates")
+            mockMvc.perform(authenticated(post("/api/candidates")
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(payload))
+                            .content(payload)))
                     .andExpect(status().isBadRequest());
         }
     }
@@ -153,7 +162,7 @@ class CandidateApiIntegrationTest {
     void getCandidateById() throws Exception {
         Candidate candidate = seedCandidate(UUID.randomUUID());
 
-        mockMvc.perform(get("/api/candidates/{id}", candidate.getId()))
+        mockMvc.perform(authenticated(get("/api/candidates/{id}", candidate.getId())))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").value(candidate.getId().toString()))
@@ -164,7 +173,7 @@ class CandidateApiIntegrationTest {
 
     @Test
     void returnsNotFoundForUnknownCandidateId() throws Exception {
-        mockMvc.perform(get("/api/candidates/{id}", UUID.randomUUID()))
+        mockMvc.perform(authenticated(get("/api/candidates/{id}", UUID.randomUUID())))
                 .andExpect(status().isNotFound());
     }
 
@@ -173,7 +182,7 @@ class CandidateApiIntegrationTest {
         UUID userId = UUID.randomUUID();
         Candidate candidate = seedCandidate(userId);
 
-        mockMvc.perform(get("/api/candidates/user/{userId}", userId))
+        mockMvc.perform(authenticated(get("/api/candidates/user/{userId}", userId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(candidate.getId().toString()))
                 .andExpect(jsonPath("$.userId").value(userId.toString()));
@@ -181,7 +190,7 @@ class CandidateApiIntegrationTest {
 
     @Test
     void returnsNotFoundForUnknownUserId() throws Exception {
-        mockMvc.perform(get("/api/candidates/user/{userId}", UUID.randomUUID()))
+        mockMvc.perform(authenticated(get("/api/candidates/user/{userId}", UUID.randomUUID())))
                 .andExpect(status().isNotFound());
     }
 
@@ -192,9 +201,9 @@ class CandidateApiIntegrationTest {
                 {"headline":"Staff Engineer","location":"Munich","skills":["Kafka","Docker"]}
                 """;
 
-        mockMvc.perform(put("/api/candidates/{id}", candidate.getId())
+        mockMvc.perform(authenticated(put("/api/candidates/{id}", candidate.getId())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(payload))
+                        .content(payload)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.headline").value("Staff Engineer"))
                 .andExpect(jsonPath("$.location").value("Munich"))
@@ -211,9 +220,9 @@ class CandidateApiIntegrationTest {
 
     @Test
     void returnsNotFoundWhenUpdatingUnknownCandidate() throws Exception {
-        mockMvc.perform(put("/api/candidates/{id}", UUID.randomUUID())
+        mockMvc.perform(authenticated(put("/api/candidates/{id}", UUID.randomUUID())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"headline\":\"Staff Engineer\"}"))
+                        .content("{\"headline\":\"Staff Engineer\"}")))
                 .andExpect(status().isNotFound());
     }
 
@@ -221,9 +230,9 @@ class CandidateApiIntegrationTest {
     void rejectsInvalidUpdatePayload() throws Exception {
         Candidate candidate = seedCandidate(UUID.randomUUID());
 
-        mockMvc.perform(put("/api/candidates/{id}", candidate.getId())
+        mockMvc.perform(authenticated(put("/api/candidates/{id}", candidate.getId())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"yearsOfExperience\":-2,\"skills\":[\"Java\",\" \"]}"))
+                        .content("{\"yearsOfExperience\":-2,\"skills\":[\"Java\",\" \"]}")))
                 .andExpect(status().isBadRequest());
     }
 
@@ -231,19 +240,19 @@ class CandidateApiIntegrationTest {
     void deletesCandidate() throws Exception {
         Candidate candidate = seedCandidate(UUID.randomUUID());
 
-        mockMvc.perform(delete("/api/candidates/{id}", candidate.getId()))
+        mockMvc.perform(authenticated(delete("/api/candidates/{id}", candidate.getId())))
                 .andExpect(status().isNoContent());
 
         assertThat(candidateRepository.findById(candidate.getId())).isEmpty();
         assertThat(candidateSkillRepository.findByCandidateId(candidate.getId())).isEmpty();
 
-        mockMvc.perform(get("/api/candidates/{id}", candidate.getId()))
+        mockMvc.perform(authenticated(get("/api/candidates/{id}", candidate.getId())))
                 .andExpect(status().isNotFound());
     }
 
     @Test
     void returnsNotFoundWhenDeletingUnknownCandidate() throws Exception {
-        mockMvc.perform(delete("/api/candidates/{id}", UUID.randomUUID()))
+        mockMvc.perform(authenticated(delete("/api/candidates/{id}", UUID.randomUUID())))
                 .andExpect(status().isNotFound());
     }
 
@@ -280,5 +289,10 @@ class CandidateApiIntegrationTest {
                 "linkedinUrl":"https://linkedin.com/in/jane","githubUrl":"https://github.com/jane",
                 "skills":["Java","Spring"]}
                 """.formatted(userId);
+    }
+
+    /** Every business endpoint requires a valid bearer token; tests authenticate explicitly. */
+    private MockHttpServletRequestBuilder authenticated(MockHttpServletRequestBuilder request) {
+        return request.with(jwt());
     }
 }
