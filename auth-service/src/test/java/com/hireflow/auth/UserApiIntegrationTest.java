@@ -21,6 +21,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 import com.hireflow.auth.entity.User;
 import com.hireflow.auth.entity.UserRole;
 import com.hireflow.auth.repository.UserRepository;
+import com.hireflow.auth.security.TestSigningKeys;
 import com.jayway.jsonpath.JsonPath;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -51,6 +52,8 @@ class UserApiIntegrationTest {
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
+        // Test-only JWT signing key; JwtService refuses to start without one.
+        registry.add("hireflow.jwt.signing-key", () -> TestSigningKeys.VALID);
     }
 
     @Autowired

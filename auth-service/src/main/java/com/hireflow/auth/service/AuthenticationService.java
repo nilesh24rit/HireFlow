@@ -8,9 +8,13 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.hireflow.auth.dto.LoginRequest;
+import com.hireflow.auth.dto.LoginResponse;
 import com.hireflow.auth.entity.User;
 import com.hireflow.auth.exception.InvalidCredentialsException;
 import com.hireflow.auth.repository.UserRepository;
+import com.hireflow.auth.security.IssuedAccessToken;
+import com.hireflow.auth.security.JwtService;
 
 /**
  * Credential verification for email-and-password login (Step 13).
@@ -35,18 +39,24 @@ public class AuthenticationService {
 
     private static final Logger log = LoggerFactory.getLogger(AuthenticationService.class);
 
-    /** Generic message shared by every failure so responses reveal nothing. */
+    /** Message shared by every login failure so responses reveal nothing. */
     private static final String INVALID_CREDENTIALS_MESSAGE = "Invalid email or password";
+
+    /** RFC 6750 token type returned by a successful login. */
+    private static final String BEARER_TOKEN_TYPE = "Bearer";
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
     /** Hash of a random, unguessable value; verified against only to equalise timings. */
     private final String timingEqualisationHash;
 
-    public AuthenticationService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public AuthenticationService(UserRepository userRepository, PasswordEncoder passwordEncoder,
+            JwtService jwtService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
         this.timingEqualisationHash = passwordEncoder.encode(UUID.randomUUID().toString());
     }
 
@@ -73,6 +83,20 @@ public class AuthenticationService {
             throw new InvalidCredentialsException(INVALID_CREDENTIALS_MESSAGE);
         }
         return user;
+    }
+
+    /**
+     * Exchanges verified credentials for a bearer access token.
+     *
+     * @param request login payload with email and password
+     * @return the issued token, its type and remaining lifetime
+     * @throws InvalidCredentialsException when the credentials cannot be verified
+     */
+    @Transactional(readOnly = true)
+    public LoginResponse login(LoginRequest request) {
+        User user = verifyCredentials(request.email(), request.password());
+        IssuedAccessToken accessToken = jwtService.generateAccessToken(user.getId(), user.getRole());
+        return new LoginResponse(accessToken.token(), BEARER_TOKEN_TYPE, accessToken.expiresInSeconds());
     }
 
     private String failureCategory(User user, boolean passwordMatches) {

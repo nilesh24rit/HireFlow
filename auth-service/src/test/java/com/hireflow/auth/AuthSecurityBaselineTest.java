@@ -26,6 +26,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 import com.hireflow.auth.entity.User;
 import com.hireflow.auth.entity.UserRole;
 import com.hireflow.auth.repository.UserRepository;
+import com.hireflow.auth.security.TestSigningKeys;
 
 /**
  * Records the ACTUAL security behaviour of auth-service through a real HTTP server
@@ -96,6 +97,8 @@ class AuthSecurityBaselineTest {
         registry.add("spring.datasource.password", postgres::getPassword);
         registry.add("spring.security.user.name", () -> SECURITY_USER);
         registry.add("spring.security.user.password", () -> SECURITY_PASSWORD);
+        // Test-only JWT signing key; JwtService refuses to start without one.
+        registry.add("hireflow.jwt.signing-key", () -> TestSigningKeys.VALID);
     }
 
     @LocalServerPort

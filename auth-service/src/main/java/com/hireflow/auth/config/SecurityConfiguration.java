@@ -76,6 +76,9 @@ public class SecurityConfiguration {
                 // for a stateless, header-authenticated REST service.
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> authorize
+                        // Credential login is the single public endpoint: it is how a
+                        // caller obtains the credentials for every protected endpoint.
+                        .requestMatchers("/api/auth/login").permitAll()
                         .anyRequest()
                         .authenticated())
                 // Authentication and access-denied responses are rendered deliberately in

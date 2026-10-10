@@ -17,6 +17,8 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
+import com.hireflow.auth.security.TestSigningKeys;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Testcontainers(disabledWithoutDocker = true)
@@ -34,6 +36,8 @@ class DatabaseIntegrationTest {
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
+        // Test-only JWT signing key; JwtService refuses to start without one.
+        registry.add("hireflow.jwt.signing-key", () -> TestSigningKeys.VALID);
     }
 
     @Autowired
@@ -69,6 +73,6 @@ class DatabaseIntegrationTest {
                 .contains("classpath:db/migration");
         assertThat(flyway.info().applied())
                 .extracting(applied -> applied.getVersion().toString())
-                .containsExactly("1");
+                .containsExactly("1", "2");
     }
 }

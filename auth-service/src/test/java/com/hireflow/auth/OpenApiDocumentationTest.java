@@ -1,5 +1,7 @@
 package com.hireflow.auth;
 
+import com.hireflow.auth.security.TestSigningKeys;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,6 +44,8 @@ class OpenApiDocumentationTest {
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
+        // Test-only JWT signing key; JwtService refuses to start without one.
+        registry.add("hireflow.jwt.signing-key", () -> TestSigningKeys.VALID);
     }
 
     @Autowired
@@ -113,6 +117,25 @@ class OpenApiDocumentationTest {
                 .andExpect(jsonPath("$.components.schemas.UserResponse").exists())
                 .andExpect(jsonPath("$.components.schemas.UserRole").exists())
                 .andExpect(jsonPath("$.components.schemas.UserRole.enum[0]").value("CANDIDATE"));
+    }
+
+    @Test
+    void documentsLoginEndpointAndSchemas() throws Exception {
+        mockMvc.perform(get("/v3/api-docs").with(user("openapi-test")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.paths['/api/auth/login']").exists())
+                .andExpect(jsonPath("$.paths['/api/auth/login'].post").exists())
+                .andExpect(jsonPath("$.paths['/api/auth/login'].post.tags[0]").value("Authentication"))
+                .andExpect(jsonPath("$.paths['/api/auth/login'].post.responses['200']").exists())
+                .andExpect(jsonPath("$.paths['/api/auth/login'].post.responses['401']").exists())
+                .andExpect(jsonPath("$.components.schemas.LoginRequest").exists())
+                .andExpect(jsonPath("$.components.schemas.LoginResponse").exists())
+                .andExpect(jsonPath("$.components.schemas.LoginResponse.properties.accessToken").exists())
+                .andExpect(jsonPath("$.components.schemas.LoginResponse.properties.tokenType").exists())
+                .andExpect(jsonPath("$.components.schemas.LoginResponse.properties.expiresIn").exists())
+                .andExpect(jsonPath("$.components.schemas.LoginRequest.properties.password.writeOnly")
+                        .value(true))
+                .andExpect(jsonPath("$.components.schemas.LoginResponse.properties.password").doesNotExist());
     }
 
     @Test

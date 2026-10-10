@@ -11,13 +11,20 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import com.hireflow.auth.dto.LoginRequest;
+import com.hireflow.auth.dto.LoginResponse;
 import com.hireflow.auth.entity.User;
 import com.hireflow.auth.entity.UserRole;
 import com.hireflow.auth.exception.InvalidCredentialsException;
 import com.hireflow.auth.repository.UserRepository;
+import com.hireflow.auth.security.IssuedAccessToken;
+import com.hireflow.auth.security.JwtService;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -34,6 +41,9 @@ class AuthenticationServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private JwtService jwtService;
+
     private PasswordEncoder passwordEncoder;
     private AuthenticationService authenticationService;
 
@@ -41,7 +51,7 @@ class AuthenticationServiceTest {
     void setUp() {
         // A real BCrypt encoder, the same implementation the application wires as a bean.
         passwordEncoder = new BCryptPasswordEncoder();
-        authenticationService = new AuthenticationService(userRepository, passwordEncoder);
+        authenticationService = new AuthenticationService(userRepository, passwordEncoder, jwtService);
     }
 
     @Test
@@ -116,6 +126,38 @@ class AuthenticationServiceTest {
         assertThatThrownBy(() -> authenticationService.verifyCredentials(email, RAW_PASSWORD))
                 .hasMessageNotContaining(email)
                 .hasMessageNotContaining(RAW_PASSWORD);
+    }
+
+    // --------------------------------------------------
+    // Login: credentials exchanged for a token
+    // --------------------------------------------------
+
+    @Test
+    void loginIssuesBearerTokenForVerifiedCredentials() {
+        User user = enabledUser();
+        when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
+        when(jwtService.generateAccessToken(any(), any()))
+                .thenReturn(new IssuedAccessToken("signed-test-token",
+                        java.time.Instant.now().plusSeconds(3600)));
+
+        LoginResponse response = authenticationService.login(new LoginRequest(user.getEmail(), RAW_PASSWORD));
+
+        assertThat(response.accessToken()).isEqualTo("signed-test-token");
+        assertThat(response.tokenType()).isEqualTo("Bearer");
+        assertThat(response.expiresIn()).isBetween(3590L, 3600L);
+        verify(jwtService).generateAccessToken(user.getId(), user.getRole());
+    }
+
+    @Test
+    void loginRejectsBadCredentialsWithoutIssuingAToken() {
+        String email = "missing-" + UUID.randomUUID() + "@example.com";
+        when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> authenticationService.login(new LoginRequest(email, RAW_PASSWORD)))
+                .isInstanceOf(InvalidCredentialsException.class)
+                .hasMessage("Invalid email or password");
+
+        verify(jwtService, never()).generateAccessToken(any(), any());
     }
 
     private User enabledUser() {
