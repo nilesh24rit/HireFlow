@@ -41,11 +41,11 @@ class SecurityErrorResponseHandlerTest {
     }
 
     @Test
-    void authenticationRejectionWrites401WithChallengeAndContract() throws Exception {
+    void authenticationRejectionWrites401WithBearerChallengeAndContract() throws Exception {
         handler.commence(request, response, new BadCredentialsException("super-secret-detail"));
 
         assertThat(response.getStatus()).isEqualTo(401);
-        assertThat(response.getHeader("WWW-Authenticate")).startsWith("Basic");
+        assertThat(response.getHeader("WWW-Authenticate")).startsWith("Bearer");
         assertThat(response.getContentType()).startsWith("application/json");
 
         String body = response.getContentAsString(StandardCharsets.UTF_8);
@@ -61,6 +61,27 @@ class SecurityErrorResponseHandlerTest {
                 .doesNotContain("Exception")
                 .doesNotContain("stackTrace")
                 .doesNotContain("trace");
+    }
+
+    @Test
+    void rejectedBearerTokenProducesInvalidTokenChallengeWithGenericBody() throws Exception {
+        // The filter marks failed validations; the entry point then advertises
+        // error="invalid_token" while the body stays the same generic contract —
+        // no claims, no crypto detail, no token material.
+        request.setAttribute(JwtAuthenticationFilter.INVALID_TOKEN_ATTRIBUTE, Boolean.TRUE);
+
+        handler.commence(request, response, new BadCredentialsException("expired JWT!"));
+
+        assertThat(response.getStatus()).isEqualTo(401);
+        assertThat(response.getHeader("WWW-Authenticate"))
+                .isEqualTo("Bearer realm=\"HireFlow auth-service\", error=\"invalid_token\"");
+
+        String body = response.getContentAsString(StandardCharsets.UTF_8);
+        assertThat(body)
+                .contains("\"message\":\"Invalid or expired authentication token\"")
+                .doesNotContain("expired JWT!")
+                .doesNotContain("claims")
+                .doesNotContain("signature");
     }
 
     @Test

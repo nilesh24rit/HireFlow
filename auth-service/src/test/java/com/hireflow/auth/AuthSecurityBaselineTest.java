@@ -9,14 +9,15 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
+import java.time.Instant;
+import java.util.Date;
 import java.util.UUID;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.junit.jupiter.Container;
@@ -26,65 +27,41 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 import com.hireflow.auth.entity.User;
 import com.hireflow.auth.entity.UserRole;
 import com.hireflow.auth.repository.UserRepository;
+import com.hireflow.auth.security.JwtService;
 import com.hireflow.auth.security.TestSigningKeys;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.JWSHeader;
+import com.nimbusds.jose.crypto.MACSigner;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
 
 /**
  * Records the ACTUAL security behaviour of auth-service through a real HTTP server
  * instead of MockMvc, because the servlet container's error dispatch is part of the
  * observed behaviour and cannot be reproduced with MockMvc.
  *
- * <p>Inspection findings (checkpoint: "inspect existing security"):
+ * <p>Since Step 13 the mechanism is stateless bearer JWT (HTTP Basic was the interim
+ * mechanism of Step 12 and is gone). This baseline observes over real HTTP that:</p>
  *
  * <ul>
- *   <li><b>Dependencies:</b> auth-service is the only service carrying
- *       {@code spring-boot-starter-security}. The other seven services have no security
- *       dependency at all.</li>
- *   <li><b>Configuration as found:</b> no {@code SecurityFilterChain} existed anywhere in
- *       the repository, so Spring Boot's default auto-configuration applied: every
- *       request required authentication while a generated HTML form login page, sessions
- *       and CSRF protection came along as defaults.</li>
- *   <li><b>Why {@code POST /api/users} returned 401:</b> the status is misleading. The
- *       request never fails authentication — it fails CSRF. {@code CsrfFilter} sits
- *       before {@code BasicAuthenticationFilter} in the chain, rejects the token-less
- *       POST with 403 ({@code AccessDeniedHandlerImpl}) and calls {@code sendError(403)}.
- *       The container then forwards the error dispatch to {@code GET /error}, which is
- *       itself covered by {@code anyRequest().authenticated()}; the anonymous error
- *       dispatch is denied and answered by {@code BasicAuthenticationEntryPoint}, whose
- *       401 plus {@code WWW-Authenticate: Basic} overwrites the original 403. The client
- *       therefore observes an empty-body 401 that looks like an authentication failure
- *       but is really a masked CSRF rejection.</li>
- *   <li><b>Proof:</b> at inspection time the same POST carrying valid Basic credentials
- *       <i>and</i> a CSRF token taken from the generated login page succeeded with 201,
- *       proving authentication worked and the absent CSRF token was the sole blocker.
- *       That proof lives in the inspection checkpoint's commit; the login page that
- *       exposed tokens is gone since the explicit chain, so the rejected token-less POST
- *       below is what remains observable.</li>
- *   <li><b>Swagger:</b> {@code /v3/api-docs} requires authentication (401 anonymous,
- *       200 authenticated) — the policy already asserted by {@code OpenApiDocumentationTest}.</li>
- *   <li><b>Security responses:</b> 401 responses originally carried no body; since the
- *       "standardize security responses" checkpoint they deliberately answer in the
- *       Step 9 contract ({@code timestamp, status, error, code, message, path}) with the
- *       Basic challenge kept on 401 and no stack traces or internals anywhere.</li>
+ *   <li>the login endpoint is the only public route and issues verifiable tokens;</li>
+ *   <li>protected routes accept a valid {@code Authorization: Bearer <token>} and reject
+ *       everything else — no token, garbage, tampered, expired, or signed with another
+ *       key — with the Step 9 401 contract, the {@code Bearer} challenge and, for failed
+ *       tokens, {@code error="invalid_token"};</li>
+ *   <li>rejected requests keep the ORIGINAL request path (no {@code /error} dispatch
+ *       rewrites it), no session cookie is ever issued, and no form login page exists;</li>
+ *   <li>Swagger stays behind authentication, the deliberate policy for this service.</li>
  * </ul>
  *
- * <p>Current configuration (checkpoints: "add security foundation", "configure csrf
- * policy"): {@code SecurityConfiguration} declares an explicit {@code SecurityFilterChain} —
- * every request authenticated, HTTP Basic kept, generated form login removed, sessions
- * stateless and CSRF disabled because authority never lives in a cookie or session.
- * {@code GET /login} is an ordinary protected unknown path answering 401, and an
- * authenticated POST needs no CSRF token.
- *
- * <p>Test credentials are local fixtures supplied through test-only properties, the same
- * way the datasource credentials come from the Testcontainers container.
+ * <p>All signing keys are the dedicated test-only keys of {@link TestSigningKeys}.</p>
  */
 @Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class AuthSecurityBaselineTest {
 
     private static final String DATABASE_NAME = "hireflow_auth";
-
-    private static final String SECURITY_USER = "baseline-user";
-    private static final String SECURITY_PASSWORD = "baseline-password";
+    private static final String RAW_PASSWORD = "Sup3r-Secret!";
 
     @Container
     static PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:17-alpine")
@@ -95,8 +72,6 @@ class AuthSecurityBaselineTest {
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
-        registry.add("spring.security.user.name", () -> SECURITY_USER);
-        registry.add("spring.security.user.password", () -> SECURITY_PASSWORD);
         // Test-only JWT signing key; JwtService refuses to start without one.
         registry.add("hireflow.jwt.signing-key", () -> TestSigningKeys.VALID);
     }
@@ -107,55 +82,97 @@ class AuthSecurityBaselineTest {
     @Autowired
     private UserRepository userRepository;
 
-    private String basicAuthorization;
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
-    @BeforeEach
-    void setUp() {
-        basicAuthorization = "Basic " + Base64.getEncoder()
-                .encodeToString((SECURITY_USER + ":" + SECURITY_PASSWORD)
-                        .getBytes(StandardCharsets.UTF_8));
-    }
+    @Autowired
+    private JwtService jwtService;
 
     @Test
-    void getWithoutCredentialsIsRejectedWith401UsingErrorContract() throws Exception {
+    void getWithoutTokenIsRejectedWith401UsingErrorContract() throws Exception {
         User user = seedUser();
 
         HttpResponse<String> response = get("/api/users/" + user.getId(), null);
 
-        assertUnauthenticatedErrorContract(response, "/api/users/" + user.getId());
+        assertUnauthenticatedErrorContract(response, "/api/users/" + user.getId(),
+                "Authentication required", "Bearer realm=\"HireFlow auth-service\"");
     }
 
     @Test
-    void wrongCredentialsAreRejectedWith401UsingErrorContract() throws Exception {
-        // Rejected credentials must produce the same deliberate 401 — and the path of the
-        // ORIGINAL request, not the container's /error dispatch path (the configurer's
-        // default entry point used to sendError(401), whose error dispatch rewrote it).
-        String wrongCredentials = "Basic " + Base64.getEncoder()
-                .encodeToString((SECURITY_USER + ":definitely-wrong-password")
-                        .getBytes(StandardCharsets.UTF_8));
-        String path = "/api/users/" + UUID.randomUUID();
-
-        HttpResponse<String> response = get(path, wrongCredentials);
-
-        assertUnauthenticatedErrorContract(response, path);
-    }
-
-    @Test
-    void getWithBasicCredentialsReturnsUser() throws Exception {
+    void loginThenBearerTokenOpensProtectedEndpoint() throws Exception {
         User user = seedUser();
 
-        HttpResponse<String> response = get("/api/users/" + user.getId(), basicAuthorization);
+        HttpResponse<String> login = post("/api/auth/login",
+                loginBody(user.getEmail(), RAW_PASSWORD), null);
+        assertThat(login.statusCode()).isEqualTo(200);
+        assertThat(login.body()).contains("\"tokenType\":\"Bearer\"");
 
-        assertThat(response.statusCode()).isEqualTo(200);
-        assertThat(response.body()).contains(user.getEmail());
+        String accessToken = readJsonString(login.body(), "accessToken");
+        HttpResponse<String> protectedCall = get("/api/users/" + user.getId(),
+                "Bearer " + accessToken);
+
+        assertThat(protectedCall.statusCode()).isEqualTo(200);
+        assertThat(protectedCall.body()).contains(user.getEmail());
     }
 
     @Test
-    void postWithBasicCredentialsIsAcceptedWithoutCsrfToken() throws Exception {
-        // CSRF policy (checkpoint: "configure csrf policy"): the stateless, header-authenticated
-        // API accepts an authenticated POST without any CSRF token — the request that used to be
-        // rejected (403 masked as 401) before the policy was made deliberate.
-        HttpResponse<String> response = post("/api/users", createUserBody(), basicAuthorization, null);
+    void invalidTokenIsRejectedWith401AndInvalidTokenChallenge() throws Exception {
+        String path = "/api/users/" + UUID.randomUUID();
+
+        HttpResponse<String> response = get(path, "Bearer definitely-not-a-jwt");
+
+        assertUnauthenticatedErrorContract(response, path,
+                "Invalid or expired authentication token",
+                "Bearer realm=\"HireFlow auth-service\", error=\"invalid_token\"");
+    }
+
+    @Test
+    void tamperedTokenIsRejected() throws Exception {
+        String token = jwtService.generateAccessToken(UUID.randomUUID(), UserRole.CANDIDATE).token();
+        int lastDot = token.lastIndexOf('.');
+        char last = token.charAt(token.length() - 1);
+        String tampered = token.substring(0, lastDot + 1)
+                + (last == 'A' ? 'B' : 'A') + token.substring(lastDot + 2);
+
+        HttpResponse<String> response = get("/api/users/" + UUID.randomUUID(), "Bearer " + tampered);
+
+        assertThat(response.statusCode()).isEqualTo(401);
+    }
+
+    @Test
+    void tokenSignedWithAnotherKeyIsRejected() throws Exception {
+        JwtService foreignDeployment = new JwtService(TestSigningKeys.OTHER, 3600, "hireflow-auth");
+        String foreignToken = foreignDeployment.generateAccessToken(UUID.randomUUID(), UserRole.CANDIDATE).token();
+
+        HttpResponse<String> response = get("/api/users/" + UUID.randomUUID(), "Bearer " + foreignToken);
+
+        assertThat(response.statusCode()).isEqualTo(401);
+    }
+
+    @Test
+    void expiredTokenIsRejected() throws Exception {
+        JWTClaimsSet claims = new JWTClaimsSet.Builder()
+                .subject(UUID.randomUUID().toString())
+                .issuer("hireflow-auth")
+                .issueTime(Date.from(Instant.now().minusSeconds(120)))
+                .expirationTime(Date.from(Instant.now().minusSeconds(60)))
+                .build();
+        SignedJWT expired = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256), claims);
+        expired.sign(new MACSigner(TestSigningKeys.VALID.getBytes(StandardCharsets.UTF_8)));
+
+        HttpResponse<String> response = get("/api/users/" + UUID.randomUUID(),
+                "Bearer " + expired.serialize());
+
+        assertThat(response.statusCode()).isEqualTo(401);
+    }
+
+    @Test
+    void postWithBearerTokenIsAcceptedWithoutCsrfTokenAndIssuesNoCookie() throws Exception {
+        User user = seedUser();
+        String token = jwtService.generateAccessToken(user.getId(), user.getRole()).token();
+
+        HttpResponse<String> response = post("/api/users", createUserBody(),
+                "Bearer " + token);
 
         assertThat(response.statusCode()).isEqualTo(201);
         assertThat(response.headers().firstValue("Location")).isPresent();
@@ -164,32 +181,33 @@ class AuthSecurityBaselineTest {
     }
 
     @Test
-    void postWithoutCredentialsIsStillRejectedWith401() throws Exception {
-        // CSRF is off, but the authentication requirement is untouched: anonymous POSTs
-        // remain rejected — now deliberately with the Step 9 error contract body.
-        HttpResponse<String> response = post("/api/users", createUserBody(), null, null);
+    void postWithoutTokenIsStillRejectedWith401() throws Exception {
+        HttpResponse<String> response = post("/api/users", createUserBody(), null);
 
-        assertUnauthenticatedErrorContract(response, "/api/users");
+        assertUnauthenticatedErrorContract(response, "/api/users",
+                "Authentication required", "Bearer realm=\"HireFlow auth-service\"");
     }
 
     @Test
-    void swaggerApiDocsRequireAuthentication() throws Exception {
+    void swaggerApiDocsRequireBearerToken() throws Exception {
         assertThat(get("/v3/api-docs", null).statusCode()).isEqualTo(401);
 
-        HttpResponse<String> authenticated = get("/v3/api-docs", basicAuthorization);
+        User user = seedUser();
+        String token = jwtService.generateAccessToken(user.getId(), user.getRole()).token();
+        HttpResponse<String> authenticated = get("/v3/api-docs", "Bearer " + token);
         assertThat(authenticated.statusCode()).isEqualTo(200);
         assertThat(authenticated.body()).contains("openapi");
     }
 
     @Test
     void generatedFormLoginPageIsNoLongerExposed() throws Exception {
-        // The explicit SecurityFilterChain no longer registers Spring Boot's default
-        // session-based form login page; /login is an ordinary protected path now.
+        // No form login exists; /login is an ordinary protected path answering 401
+        // with the Bearer challenge.
         HttpResponse<String> response = get("/login", null);
 
         assertThat(response.statusCode()).isEqualTo(401);
         assertThat(response.headers().firstValue("WWW-Authenticate"))
-                .hasValueSatisfying(challenge -> assertThat(challenge).startsWith("Basic"));
+                .hasValueSatisfying(challenge -> assertThat(challenge).startsWith("Bearer"));
     }
 
     private HttpClient httpClient() {
@@ -201,12 +219,12 @@ class AuthSecurityBaselineTest {
 
     /**
      * Asserts the deliberate 401 shape: Step 9 error contract naming the original request
-     * path, Basic challenge, and no stack traces, exception names or other internals.
+     * path, the expected challenge, and no stack traces, exception names or internals.
      */
-    private void assertUnauthenticatedErrorContract(HttpResponse<String> response, String expectedPath) {
+    private void assertUnauthenticatedErrorContract(HttpResponse<String> response, String expectedPath,
+            String expectedMessage, String expectedChallenge) {
         assertThat(response.statusCode()).isEqualTo(401);
-        assertThat(response.headers().firstValue("WWW-Authenticate"))
-                .hasValueSatisfying(challenge -> assertThat(challenge).startsWith("Basic"));
+        assertThat(response.headers().firstValue("WWW-Authenticate")).hasValue(expectedChallenge);
         assertThat(response.headers().firstValue("Content-Type"))
                 .hasValueSatisfying(type -> assertThat(type).startsWith("application/json"));
         assertThat(response.body())
@@ -214,7 +232,7 @@ class AuthSecurityBaselineTest {
                 .contains("\"status\":401")
                 .contains("\"error\":\"Unauthorized\"")
                 .contains("\"code\":\"UNAUTHENTICATED\"")
-                .contains("\"message\":\"Authentication required\"")
+                .contains("\"message\":\"" + expectedMessage + "\"")
                 .contains("\"path\":\"" + expectedPath + "\"")
                 .doesNotContain("/error")
                 .doesNotContain("Exception")
@@ -230,26 +248,27 @@ class AuthSecurityBaselineTest {
         if (authorization != null) {
             builder.header("Authorization", authorization);
         }
-        return send(httpClient(), builder.build());
+        return send(builder.build());
     }
 
-    private HttpResponse<String> post(String path, String body, String authorization, String csrfToken)
-            throws Exception {
+    private HttpResponse<String> post(String path, String body, String authorization) throws Exception {
         HttpRequest.Builder builder = request(path)
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8));
         if (authorization != null) {
             builder.header("Authorization", authorization);
         }
-        if (csrfToken != null) {
-            builder.header("X-CSRF-TOKEN", csrfToken);
-        }
-        return send(httpClient(), builder.build());
+        return send(builder.build());
     }
 
-    private HttpResponse<String> send(HttpClient client, HttpRequest request)
-            throws IOException, InterruptedException {
-        return client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+    private HttpResponse<String> send(HttpRequest request) throws IOException, InterruptedException {
+        return httpClient().send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+    }
+
+    private String readJsonString(String body, String field) {
+        String marker = "\"" + field + "\":\"";
+        int start = body.indexOf(marker) + marker.length();
+        return body.substring(start, body.indexOf('"', start));
     }
 
     private User seedUser() {
@@ -258,7 +277,12 @@ class AuthSecurityBaselineTest {
         user.setFirstName("Baseline");
         user.setLastName("User");
         user.setRole(UserRole.CANDIDATE);
+        user.setPasswordHash(passwordEncoder.encode(RAW_PASSWORD));
         return userRepository.saveAndFlush(user);
+    }
+
+    private String loginBody(String email, String password) {
+        return "{\"email\":\"%s\",\"password\":\"%s\"}".formatted(email, password);
     }
 
     private String createUserBody() {

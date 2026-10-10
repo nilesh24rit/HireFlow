@@ -34,16 +34,17 @@ import jakarta.servlet.http.HttpServletResponse;
  *
  * <p>The response is written directly ({@link HttpServletResponse#setStatus(int)}) instead
  * of via {@code sendError(...)}: a {@code sendError} triggers the container's error
- * dispatch to the protected {@code /error} path, which the inspection checkpoint proved
- * rewrites the original status to 401. Writing the response makes it final, so the status
- * chosen here is the status the client observes.
+ * dispatch to the protected {@code /error} path, which rewrites the original status.
+ * Writing the response makes it final, so the status chosen here is the status the client
+ * observes.
  *
- * <p>Implements both Spring Security callbacks because they share one response shape; a
- * single instance is wired as entry point and access-denied handler.
- *
- * <p>401 keeps advertising the HTTP Basic challenge while Basic is the mechanism; the
- * challenge changes when JWT authentication arrives in Step 13. No role or permission
- * rule lives here — RBAC belongs to Step 15.
+ * <p>Since Step 13 the challenge is {@code Bearer}: a missing credential yields
+ * {@code WWW-Authenticate: Bearer realm="HireFlow auth-service"} with the generic
+ * "Authentication required" message, while a supplied token that failed validation (marked
+ * by {@link JwtAuthenticationFilter}) yields {@code error="invalid_token"} and "Invalid or
+ * expired authentication token" — still generic, and never echoing claims or crypto
+ * detail. 403 carries no challenge: authentication succeeded, permission did not. No role
+ * or permission rule lives here — RBAC belongs to Step 15.
  */
 @Component
 public class SecurityErrorResponseHandler implements AuthenticationEntryPoint, AccessDeniedHandler {
@@ -53,7 +54,12 @@ public class SecurityErrorResponseHandler implements AuthenticationEntryPoint, A
     /** Mirrors {@code GlobalExceptionHandler} so both layers echo correlation ids alike. */
     private static final int MAX_REQUEST_ID_LENGTH = 64;
 
+    private static final String BEARER_CHALLENGE = "Bearer realm=\"HireFlow auth-service\"";
+    private static final String BEARER_INVALID_TOKEN_CHALLENGE =
+            "Bearer realm=\"HireFlow auth-service\", error=\"invalid_token\"";
+
     private static final String AUTHENTICATION_REQUIRED = "Authentication required";
+    private static final String INVALID_TOKEN = "Invalid or expired authentication token";
     private static final String ACCESS_DENIED = "Access denied";
 
     private final ObjectMapper objectMapper;
@@ -73,8 +79,10 @@ public class SecurityErrorResponseHandler implements AuthenticationEntryPoint, A
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response,
             AuthenticationException authenticationException) throws IOException {
+        boolean invalidToken = request.getAttribute(JwtAuthenticationFilter.INVALID_TOKEN_ATTRIBUTE) != null;
         write(request, response, HttpStatus.UNAUTHORIZED, ErrorCode.UNAUTHENTICATED,
-                AUTHENTICATION_REQUIRED);
+                invalidToken ? INVALID_TOKEN : AUTHENTICATION_REQUIRED,
+                invalidToken ? BEARER_INVALID_TOKEN_CHALLENGE : BEARER_CHALLENGE);
     }
 
     /**
@@ -88,20 +96,19 @@ public class SecurityErrorResponseHandler implements AuthenticationEntryPoint, A
     @Override
     public void handle(HttpServletRequest request, HttpServletResponse response,
             AccessDeniedException accessDeniedException) throws IOException {
-        write(request, response, HttpStatus.FORBIDDEN, ErrorCode.FORBIDDEN, ACCESS_DENIED);
+        write(request, response, HttpStatus.FORBIDDEN, ErrorCode.FORBIDDEN, ACCESS_DENIED, null);
     }
 
     private void write(HttpServletRequest request, HttpServletResponse response,
-            HttpStatus status, ErrorCode code, String message) throws IOException {
+            HttpStatus status, ErrorCode code, String message, String challenge) throws IOException {
         ApiErrorResponse body = ApiErrorResponse.of(
                 status, code, message, request.getRequestURI(), requestId(request), null);
 
         response.setStatus(status.value());
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        if (status == HttpStatus.UNAUTHORIZED) {
-            response.setHeader(HttpHeaders.WWW_AUTHENTICATE,
-                    "Basic realm=\"HireFlow auth-service\", charset=\"UTF-8\"");
+        if (challenge != null) {
+            response.setHeader(HttpHeaders.WWW_AUTHENTICATE, challenge);
         }
         objectMapper.writeValue(response.getWriter(), body);
     }

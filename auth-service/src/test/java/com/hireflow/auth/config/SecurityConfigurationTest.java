@@ -1,6 +1,7 @@
 package com.hireflow.auth.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
@@ -36,24 +37,28 @@ import com.hireflow.auth.repository.UserRepository;
 import com.hireflow.auth.security.TestSigningKeys;
 
 /**
- * Step 12 security tests at the filter-chain level, through Spring Security's own test
- * support ({@code springSecurity()}), complementing {@code AuthSecurityBaselineTest}
- * which observes the same rules over real HTTP:
+ * Security tests at the filter-chain level, through Spring Security's own test support
+ * ({@code springSecurity()}), complementing {@code AuthSecurityBaselineTest} which
+ * observes the same rules over real HTTP. Since Step 13 the mechanism is stateless
+ * bearer JWT:
  *
  * <ul>
  *   <li>the security configuration starts — the context boots with exactly the one
  *       explicit {@link SecurityFilterChain} of {@code SecurityConfiguration}, and every
  *       test below is executed through that chain;</li>
- *   <li>endpoint behaviour is preserved: authenticated requests pass, anonymous requests
- *       are rejected with the deliberate 401 error contract and the Basic challenge;</li>
+ *   <li>endpoint behaviour is preserved: requests carrying a valid bearer token pass,
+ *       anonymous requests are rejected with the deliberate 401 error contract and the
+ *       Bearer challenge;</li>
+ *   <li>an invalid bearer token is rejected with the {@code invalid_token} challenge and
+ *       can never be treated as anonymous success on a protected route;</li>
  *   <li>the CSRF policy holds: an authenticated POST with deliberately no CSRF token is
  *       accepted, because the service is stateless and header-authenticated;</li>
  *   <li>Swagger access matches the intended policy: anonymous {@code /v3/api-docs} is
  *       rejected (the authenticated side is asserted by {@code OpenApiDocumentationTest}).</li>
  * </ul>
  *
- * <p>No {@code formLogin()} or session login is part of the chain; JWT and role rules
- * arrive in later steps and will extend the same chain.
+ * <p>No {@code formLogin()} or session login is part of the chain; role rules arrive in
+ * Step 15 and will extend the same chain.
  */
 @Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest
@@ -81,6 +86,9 @@ class SecurityConfigurationTest {
     private UserRepository userRepository;
 
     @Autowired
+    private com.hireflow.auth.security.JwtService jwtService;
+
+    @Autowired
     private List<SecurityFilterChain> securityFilterChains;
 
     private MockMvc mockMvc;
@@ -105,12 +113,35 @@ class SecurityConfigurationTest {
 
         mockMvc.perform(get("/api/users/{id}", user.getId()))
                 .andExpect(status().isUnauthorized())
-                .andExpect(header().string("WWW-Authenticate", startsWith("Basic")))
+                .andExpect(header().string("WWW-Authenticate", startsWith("Bearer")))
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.status").value(401))
                 .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"))
                 .andExpect(jsonPath("$.message").value("Authentication required"))
                 .andExpect(jsonPath("$.path").value("/api/users/" + user.getId()));
+    }
+
+    @Test
+    void getWithValidBearerTokenIsAccepted() throws Exception {
+        User user = seedUser();
+        String token = jwtService.generateAccessToken(user.getId(), user.getRole()).token();
+
+        mockMvc.perform(get("/api/users/{id}", user.getId())
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value(user.getEmail()));
+    }
+
+    @Test
+    void getWithInvalidBearerTokenIsRejectedWithInvalidTokenChallenge() throws Exception {
+        User user = seedUser();
+
+        mockMvc.perform(get("/api/users/{id}", user.getId())
+                        .header("Authorization", "Bearer not-a-token"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().string("WWW-Authenticate", containsString("error=\"invalid_token\"")))
+                .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"))
+                .andExpect(jsonPath("$.message").value("Invalid or expired authentication token"));
     }
 
     @Test
@@ -140,7 +171,7 @@ class SecurityConfigurationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(createUserBody()))
                 .andExpect(status().isUnauthorized())
-                .andExpect(header().string("WWW-Authenticate", startsWith("Basic")))
+                .andExpect(header().string("WWW-Authenticate", startsWith("Bearer")))
                 .andExpect(jsonPath("$.status").value(401))
                 .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"))
                 .andExpect(jsonPath("$.path").value("/api/users"));
