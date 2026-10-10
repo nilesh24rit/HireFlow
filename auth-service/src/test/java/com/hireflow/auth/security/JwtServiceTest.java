@@ -156,9 +156,7 @@ class JwtServiceTest {
     @Test
     void rejectsTamperedToken() {
         String token = jwtService.generateAccessToken(UUID.randomUUID(), UserRole.CANDIDATE).token();
-        int lastDot = token.lastIndexOf('.');
-        String tampered = token.substring(0, lastDot + 1)
-                + flipLastCharacter(token.substring(lastDot + 1));
+        String tampered = flipSignatureCharacter(token);
 
         assertThatThrownBy(() -> jwtService.validateAccessToken(tampered))
                 .isInstanceOf(InvalidTokenException.class)
@@ -287,8 +285,21 @@ class JwtServiceTest {
                 .hasMessageNotContaining(TestSigningKeys.VALID);
     }
 
-    private static String flipLastCharacter(String value) {
-        char last = value.charAt(value.length() - 1);
-        return value.substring(0, value.length() - 1) + (last == 'A' ? 'B' : 'A');
+    /**
+     * Flips one base64url character in the MIDDLE of the signature.
+     *
+     * <p>The final character of a 32-byte HMAC's base64url encoding carries padding bits
+     * after its four data bits, so flipping only that character can decode back to the
+     * identical byte array and leave the signature valid. A middle character always holds
+     * six real data bits, so the tamper is guaranteed to change the signature bytes.</p>
+     */
+    private static String flipSignatureCharacter(String token) {
+        int lastDot = token.lastIndexOf('.');
+        String signature = token.substring(lastDot + 1);
+        int middle = signature.length() / 2;
+        char original = signature.charAt(middle);
+        return token.substring(0, lastDot + 1)
+                + signature.substring(0, middle) + (original == 'A' ? 'B' : 'A')
+                + signature.substring(middle + 1);
     }
 }

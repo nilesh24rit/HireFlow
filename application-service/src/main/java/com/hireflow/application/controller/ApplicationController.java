@@ -31,12 +31,16 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping(value = "/api/applications", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Applications", description = "Candidate job application lifecycle for the application service")
+@SecurityRequirement(name = "bearerAuth")
+@ApiResponse(responseCode = "401", description = "Missing or invalid bearer token",
+        content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
 public class ApplicationController {
 
     private final ApplicationService applicationService;

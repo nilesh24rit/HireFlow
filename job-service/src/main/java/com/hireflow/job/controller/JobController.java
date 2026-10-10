@@ -31,12 +31,16 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping(value = "/api/jobs", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Jobs", description = "Job requisition lifecycle management for the job service")
+@SecurityRequirement(name = "bearerAuth")
+@ApiResponse(responseCode = "401", description = "Missing or invalid bearer token",
+        content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
 public class JobController {
 
     private final JobService jobService;

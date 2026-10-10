@@ -129,10 +129,16 @@ class AuthSecurityBaselineTest {
     @Test
     void tamperedTokenIsRejected() throws Exception {
         String token = jwtService.generateAccessToken(UUID.randomUUID(), UserRole.CANDIDATE).token();
+        // Flip a character in the MIDDLE of the signature. The final base64url character
+        // of a 32-byte HMAC carries padding bits after its 4 data bits, so changing only
+        // that character can decode to the identical byte array and leave the token valid.
         int lastDot = token.lastIndexOf('.');
-        char last = token.charAt(token.length() - 1);
+        String signature = token.substring(lastDot + 1);
+        int middle = signature.length() / 2;
+        char original = signature.charAt(middle);
         String tampered = token.substring(0, lastDot + 1)
-                + (last == 'A' ? 'B' : 'A') + token.substring(lastDot + 2);
+                + signature.substring(0, middle) + (original == 'A' ? 'B' : 'A')
+                + signature.substring(middle + 1);
 
         HttpResponse<String> response = get("/api/users/" + UUID.randomUUID(), "Bearer " + tampered);
 

@@ -3,6 +3,8 @@ package com.hireflow.job;
 import com.hireflow.job.security.TestSigningKeys;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
@@ -27,13 +29,18 @@ import com.hireflow.job.entity.JobSkill;
 import com.hireflow.job.entity.JobStatus;
 import com.hireflow.job.repository.JobRepository;
 import com.hireflow.job.repository.JobSkillRepository;
+import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.JWSHeader;
+import com.nimbusds.jose.crypto.MACSigner;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
 import com.jayway.jsonpath.JsonPath;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -321,6 +328,28 @@ class JobApiIntegrationTest {
 
     /** Every business endpoint requires a valid bearer token; tests authenticate explicitly. */
     private MockHttpServletRequestBuilder authenticated(MockHttpServletRequestBuilder request) {
-        return request.with(jwt());
+        return request.header("Authorization", "Bearer " + signedBearerToken());
+    }
+
+    /**
+     * A valid access token signed exactly as auth-service signs it, so the request travels
+     * through the real {@code JwtAuthenticationFilter} instead of being injected straight
+     * into the security context by a test post-processor.
+     */
+    private static String signedBearerToken() {
+        try {
+            JWTClaimsSet claims = new JWTClaimsSet.Builder()
+                    .subject(UUID.randomUUID().toString())
+                    .issuer("hireflow-auth")
+                    .issueTime(new Date())
+                    .expirationTime(Date.from(Instant.now().plusSeconds(3600)))
+                    .claim("role", "RECRUITER")
+                    .build();
+            SignedJWT jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256), claims);
+            jwt.sign(new MACSigner(TestSigningKeys.VALID.getBytes(StandardCharsets.UTF_8)));
+            return jwt.serialize();
+        } catch (JOSEException ex) {
+            throw new IllegalStateException("Failed to sign test bearer token", ex);
+        }
     }
 }

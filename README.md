@@ -100,6 +100,10 @@ Security is a stateless bearer-JWT foundation:
   responses (including `invalid_token` rejections) pass through untouched. This keeps the
   gateway free of signing keys and keeps edge and service from ever disagreeing about a
   credential.
+- **Swagger documents the contract:** every service publishes a `bearerAuth` HTTP security
+  scheme (`bearer`, JWT format) in its OpenAPI document, every protected operation carries
+  that security requirement plus a `401` response in the shared error model, and the public
+  `POST /api/auth/login` is deliberately exempt.
 - No health endpoint is exposed (no actuator dependency in any service).
 
 | Check | auth-service (8081) | candidate/job/application | via gateway (8080) |

@@ -116,4 +116,24 @@ class OpenApiDocumentationTest {
                 .andExpect(jsonPath("$.components.schemas.JobStatus").exists())
                 .andExpect(jsonPath("$.components.schemas.JobStatus.enum[0]").value("DRAFT"));
     }
+
+    @Test
+    void documentsBearerSecuritySchemeAnd401OnProtectedOperations() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.type").value("http"))
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.scheme").value("bearer"))
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.bearerFormat").value("JWT"))
+                .andExpect(jsonPath("$.paths['/api/jobs'].post.security[0].bearerAuth").exists())
+                .andExpect(jsonPath("$.paths['/api/jobs/{id}'].get.security[0].bearerAuth").exists())
+                .andExpect(jsonPath("$.paths['/api/jobs/recruiter/{recruiterId}'].get.security[0].bearerAuth").exists())
+                .andExpect(jsonPath("$.paths['/api/jobs/{id}'].put.security[0].bearerAuth").exists())
+                .andExpect(jsonPath("$.paths['/api/jobs/{id}'].delete.security[0].bearerAuth").exists())
+                .andExpect(jsonPath("$.paths['/api/jobs'].post.responses['401']"
+                        + ".content['application/json'].schema['$ref']")
+                        .value("#/components/schemas/ApiErrorResponse"))
+                .andExpect(jsonPath("$.paths['/api/jobs/{id}'].get.responses['401']"
+                        + ".content['application/json'].schema['$ref']")
+                        .value("#/components/schemas/ApiErrorResponse"));
+    }
 }

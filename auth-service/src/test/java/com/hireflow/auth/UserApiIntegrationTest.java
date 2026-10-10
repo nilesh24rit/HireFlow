@@ -190,7 +190,9 @@ class UserApiIntegrationTest {
 
     @Test
     void neverReturnsPasswordMaterialInCreateResponse() throws Exception {
-        String email = "no-password-leak-" + UUID.randomUUID() + "@example.com";
+        // The fixture deliberately avoids the literal word "password" in the email so the
+        // assertion below cannot be satisfied or defeated by the echoed address itself.
+        String email = "no-credential-leak-" + UUID.randomUUID() + "@example.com";
 
         MvcResult result = mockMvc.perform(post("/api/users")
                         .contentType(MediaType.APPLICATION_JSON)

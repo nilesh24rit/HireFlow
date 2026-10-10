@@ -13,7 +13,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.web.context.WebApplicationContext;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -26,7 +25,6 @@ import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -120,9 +118,13 @@ class EndpointSecurityIntegrationTest {
     void authenticatedWriteNeedsNoCsrfToken() throws Exception {
         // CSRF is deliberately disabled for this stateless API: a bearer-authenticated
         // POST without any CSRF token must reach validation, not be rejected with 401/403.
-        mockMvc.perform(authenticated(post("/api/jobs")
+        String token = tokenSignedWith(TestSigningKeys.VALID, UUID.randomUUID().toString(),
+                Date.from(Instant.now().plusSeconds(3600)));
+
+        mockMvc.perform(post("/api/jobs")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}")))
+                        .content("{}")
+                        .header("Authorization", "Bearer " + token))
                 .andExpect(status().isBadRequest());
     }
 
@@ -160,10 +162,16 @@ class EndpointSecurityIntegrationTest {
     void tamperedTokenIsRejected() throws Exception {
         String token = tokenSignedWith(TestSigningKeys.VALID, UUID.randomUUID().toString(),
                 Date.from(Instant.now().plusSeconds(3600)));
+        // Flip a character in the MIDDLE of the signature. The final base64url character
+        // of a 32-byte HMAC carries padding bits after its 4 data bits, so changing only
+        // that character can decode to the identical byte array and leave the token valid.
         int lastDot = token.lastIndexOf('.');
-        char last = token.charAt(token.length() - 1);
+        String signature = token.substring(lastDot + 1);
+        int middle = signature.length() / 2;
+        char original = signature.charAt(middle);
         String tampered = token.substring(0, lastDot + 1)
-                + (last == 'A' ? 'B' : 'A') + token.substring(lastDot + 2);
+                + signature.substring(0, middle) + (original == 'A' ? 'B' : 'A')
+                + signature.substring(middle + 1);
 
         mockMvc.perform(get("/api/jobs/{id}", UUID.randomUUID())
                         .header("Authorization", "Bearer " + tampered))
@@ -190,8 +198,4 @@ class EndpointSecurityIntegrationTest {
         return jwt.serialize();
     }
 
-    /** Every business endpoint requires a valid bearer token; tests authenticate explicitly. */
-    private MockHttpServletRequestBuilder authenticated(MockHttpServletRequestBuilder request) {
-        return request.with(jwt());
-    }
 }

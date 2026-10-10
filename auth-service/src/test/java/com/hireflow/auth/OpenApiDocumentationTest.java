@@ -139,6 +139,52 @@ class OpenApiDocumentationTest {
     }
 
     @Test
+    void documentsBearerSecurityScheme() throws Exception {
+        mockMvc.perform(get("/v3/api-docs").with(user("openapi-test")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.type").value("http"))
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.scheme").value("bearer"))
+                .andExpect(jsonPath("$.components.securitySchemes.bearerAuth.bearerFormat").value("JWT"));
+    }
+
+    @Test
+    void requiresBearerTokenOnEveryProtectedUserOperation() throws Exception {
+        mockMvc.perform(get("/v3/api-docs").with(user("openapi-test")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.paths['/api/users'].post.security[0].bearerAuth").exists())
+                .andExpect(jsonPath("$.paths['/api/users/{id}'].get.security[0].bearerAuth").exists())
+                .andExpect(jsonPath("$.paths['/api/users/email/{email}'].get.security[0].bearerAuth").exists())
+                .andExpect(jsonPath("$.paths['/api/users/{id}'].put.security[0].bearerAuth").exists())
+                .andExpect(jsonPath("$.paths['/api/users/{id}'].delete.security[0].bearerAuth").exists());
+    }
+
+    @Test
+    void documents401OnProtectedUserOperations() throws Exception {
+        mockMvc.perform(get("/v3/api-docs").with(user("openapi-test")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.paths['/api/users'].post.responses['401']"
+                        + ".content['application/json'].schema['$ref']")
+                        .value("#/components/schemas/ApiErrorResponse"))
+                .andExpect(jsonPath("$.paths['/api/users/{id}'].get.responses['401']"
+                        + ".content['application/json'].schema['$ref']")
+                        .value("#/components/schemas/ApiErrorResponse"))
+                .andExpect(jsonPath("$.paths['/api/users/{id}'].put.responses['401']"
+                        + ".content['application/json'].schema['$ref']")
+                        .value("#/components/schemas/ApiErrorResponse"))
+                .andExpect(jsonPath("$.paths['/api/users/{id}'].delete.responses['401']"
+                        + ".content['application/json'].schema['$ref']")
+                        .value("#/components/schemas/ApiErrorResponse"));
+    }
+
+    @Test
+    void documentsLoginEndpointWithoutSecurityRequirement() throws Exception {
+        // Login is the only unauthenticated endpoint: it must carry no bearer requirement.
+        mockMvc.perform(get("/v3/api-docs").with(user("openapi-test")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.paths['/api/auth/login'].post.security").doesNotExist());
+    }
+
+    @Test
     void documentsPasswordAsWriteOnlyAndNeverInResponses() throws Exception {
         // The registration payload documents its password input as write-only, and no
         // response schema may carry password material of any kind.
