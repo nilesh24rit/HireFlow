@@ -51,6 +51,7 @@ the services without rewriting paths, methods, status codes, or response bodies:
 | `/api/candidates/**` | `candidate-service` | `http://localhost:8082` |
 | `/api/jobs/**` | `job-service` | `http://localhost:8083` |
 | `/api/applications/**` | `application-service` | `http://localhost:8084` |
+| `/oauth2/authorization/**`<br>`/login/oauth2/code/**`<br>`/api/auth/oauth2/**` | `google-oauth2` | `http://localhost:8081` |
 
 Target addresses are development defaults declared in source and can be overridden with the
 `hireflow.services.*-uri` properties (or equivalent environment variables); they contain no
@@ -58,10 +59,18 @@ credentials. Unmatched paths return `404`, an unreachable service returns a clea
 without stack traces, and every response produced by a service is passed through untouched.
 Gateway access logs record only route id, HTTP method, request path, and response status.
 
-The login endpoint `POST /api/auth/login` is not part of this table: the route set
-above is unchanged by the authentication work, so credential login is called directly
-against auth-service (`http://localhost:8081/api/auth/login`). Once a client holds an access
-token it is sent through the gateway on the routed paths above.
+The credential login endpoint `POST /api/auth/login` is not part of this table: only the
+three paths Google sign-in needs were added, so login keeps its direct deployment against
+auth-service (`http://localhost:8081/api/auth/login`). Once a client holds an access token
+it is sent through the gateway on the routed paths above.
+
+The `google-oauth2` route exists because a browser OAuth2 flow cannot be pointed at an
+internal address: the entry point that redirects to Google, the callback Google redirects
+back to, and the endpoint that redeems the resulting handoff code must all be reachable on
+the public origin the user is looking at. The gateway adds no `X-Forwarded-*` header of its
+own and strips any a caller sent, so no forwarded header can describe that origin — auth-service
+therefore pins its callback URL from operator configuration (`HIREFLOW_OAUTH_REDIRECT_URI`,
+e.g. `http://localhost:8080`) rather than from a request header.
 
 Swagger/OpenAPI stays on the services themselves and is unaffected by the gateway:
 `http://localhost:<service-port>/v3/api-docs` and `/swagger-ui.html`.
@@ -70,12 +79,35 @@ Swagger/OpenAPI stays on the services themselves and is unaffected by the gatewa
 
 Security is a stateless bearer-JWT foundation:
 
-- **Credential login:** `POST /api/auth/login` with `{email, password}` is the only public
-  endpoint in the platform. It answers `{accessToken, tokenType: "Bearer", expiresIn}` on
-  success and a single generic `401` "Invalid email or password" for every failure — wrong
-  password, unknown email, and accounts without a stored hash are
-  indistinguishable, so the endpoint cannot be used to enumerate users. Passwords are stored
-  as BCrypt hashes and are never returned, logged, or echoed.
+- **Credential login:** `POST /api/auth/login` with `{email, password}` answers
+  `{accessToken, tokenType: "Bearer", expiresIn}` on success and a single generic `401`
+  "Invalid email or password" for every failure — wrong password, unknown email, and accounts
+  without a stored hash are indistinguishable, so the endpoint cannot be used to enumerate
+  users. Passwords are stored as BCrypt hashes and are never returned, logged, or echoed.
+- **Google sign-in** is an *additional* way to obtain the same token, enabled only when the
+  environment supplies `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`; without both the
+  OAuth2 endpoints simply do not exist and nothing is half-configured. The flow is
+  `GET /oauth2/authorization/google` → Google → `GET /login/oauth2/code/google`, then
+  `POST /api/auth/oauth2/token`:
+  - Google's stable **`sub`** is the identity key, never the email — Google never changes
+    `sub`, whereas a user may change their address. The email is used only after `sub` has
+    no match, and only when Google marks it `email_verified`; an unverified email is refused.
+  - **No automatic linking by email.** A Google identity whose email matches an existing
+    account is refused with `409` rather than merged, because a matching email is not proof
+    that two identities belong to the same person — silently linking would be an
+    account-takeover vector. Users who legitimately want both methods link them from an
+    authenticated session, so linking always requires already owning the account.
+  - New Google users get the default registration role (`CANDIDATE`), assigned server-side;
+    a caller can never obtain `RECRUITER` or `ADMIN` through Google. Google-only accounts
+    hold no password hash, so they can never password-login.
+  - **The token never appears in a redirect URL.** The callback answers with a single-use,
+    short-lived, unguessable handoff code; exchanging it once at `POST /api/auth/oauth2/token`
+    returns the ordinary `LoginResponse`. A replayed code is refused, and the OAuth2 `state`
+    parameter — validated by Spring Security before any of this runs — defeats login CSRF.
+  - Failures answer in the common error contract with no internal detail: cancelled at
+    Google `401`, unverifiable state `400`, unverified email `401`, disabled account `403`,
+    email conflict `409`, anything unexpected a generic `500`. Google access/refresh tokens,
+    authorization codes, handoff codes, JWTs and the client secret are never logged.
 - **auth-service** issues tokens: subject is the user's UUID id, with `iat`, `exp`, issuer
   (`hireflow-auth`) and a server-derived role claim. The signing key comes from
   `hireflow.jwt.signing-key` (env `HIREFLOW_JWT_SIGNINGKEY`); the application fails at
@@ -103,17 +135,27 @@ Security is a stateless bearer-JWT foundation:
 - **Swagger documents the contract:** every service publishes a `bearerAuth` HTTP security
   scheme (`bearer`, JWT format) in its OpenAPI document, every protected operation carries
   that security requirement plus a `401` response in the shared error model, and the public
-  `POST /api/auth/login` is deliberately exempt.
+  token-issuing endpoints `POST /api/auth/login` and `POST /api/auth/oauth2/token` are
+  deliberately exempt.
 - No health endpoint is exposed (no actuator dependency in any service).
 
 | Check | auth-service (8081) | candidate/job/application | via gateway (8080) |
 | --- | --- | --- | --- |
 | `POST /api/auth/login` with valid credentials | `200` + access token | — | — |
 | `POST /api/auth/login` with bad credentials | `401` generic message | — | — |
+| `GET /oauth2/authorization/google` (Google enabled) | `302` to Google with `state` | — | `302` passthrough |
+| `GET /oauth2/authorization/google` (no Google credentials) | `404`, OAuth2 absent | — | `404` passthrough |
+| `GET /login/oauth2/code/google` with no pending sign-in | `400` `INVALID_REQUEST` | — | `400` passthrough |
+| `POST /api/auth/oauth2/token` with a fresh handoff code | `200` + access token | — | `200` passthrough |
+| `POST /api/auth/oauth2/token` with a used/unknown code | `401` generic message | — | `401` passthrough |
 | Request without a token | `401` + error contract | `401` + error contract | `401` passthrough |
 | Request with an invalid/expired token | `401` `invalid_token` | `401` `invalid_token` | `401` passthrough |
 | `GET /api/users/{id}` with a valid token | `200` | — | `200`, byte-identical body |
 | Create via `POST` (no CSRF token) | `201` with a token | `201` with a token | `201` |
 | `/v3/api-docs`, `/swagger-ui.html` | `401` → `200` with a token | `200` (public) | — |
 | `/actuator/health` | not present (`404`) | not present (`404`) | — |
+
+Manual Google login — actually signing in with a real Google account — requires real
+`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` and is therefore **not covered by the automated
+suite**. Everything below Google's own endpoints is covered by tests that mock Google.
 

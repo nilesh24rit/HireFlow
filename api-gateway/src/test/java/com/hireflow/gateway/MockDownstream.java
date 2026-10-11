@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
@@ -12,16 +14,24 @@ import com.sun.net.httpserver.HttpServer;
  * Minimal in-JVM downstream used by the gateway tests.
  *
  * <p>Each instance stands in for one HireFlow service on an ephemeral port. It echoes back
- * which service answered together with the HTTP method, path, query string and body it
- * received, which lets the tests prove that the gateway selected the right target and
- * forwarded the request unchanged. A path segment {@code /error/<code>} makes the mock
- * respond with that status code so downstream status pass-through can be asserted, and a
- * path segment {@code /security/401} makes it emit a deliberate auth-service style 401
- * (the common error contract plus {@code WWW-Authenticate}) so security-response pass-through
- * can be asserted. The {@code Authorization} header of every request is echoed back, so the
- * tests can prove bearer tokens cross the gateway verbatim.</p>
+ * which service answered together with the HTTP method, path, query string, forwarded
+ * headers and body it received, which lets the tests prove that the gateway selected the
+ * right target and forwarded the request unchanged. A path segment {@code /error/<code>}
+ * makes the mock respond with that status code so downstream status pass-through can be
+ * asserted, a path segment {@code /security/401} makes it emit a deliberate auth-service
+ * style 401 (the common error contract plus {@code WWW-Authenticate}) so security-response
+ * pass-through can be asserted, and a path under {@code /oauth2/authorization/} makes it
+ * answer with the 302 redirect to the identity provider that auth-service returns, so the
+ * browser redirect leg of Google sign-in can be asserted. The {@code Authorization} header
+ * of every request is echoed back, so the tests can prove bearer tokens cross the gateway
+ * verbatim.</p>
  */
 final class MockDownstream {
+
+    /** Headers the gateway is expected to describe the public hop with. */
+    private static final List<String> FORWARD_HEADERS =
+            List.of("X-Forwarded-For", "X-Forwarded-Host", "X-Forwarded-Port",
+                    "X-Forwarded-Proto", "Forwarded");
 
     private final HttpServer server;
     private final String serviceName;
@@ -61,6 +71,11 @@ final class MockDownstream {
             return;
         }
 
+        if (path.startsWith("/oauth2/authorization/")) {
+            respondWithIdentityProviderRedirect(exchange, path);
+            return;
+        }
+
         int status = downstreamStatus(path);
         String body = status == 200
                 ? "service=" + serviceName
@@ -68,6 +83,7 @@ final class MockDownstream {
                         + "|path=" + path
                         + "|query=" + (query != null ? query : "")
                         + "|authorization=" + authorization(exchange)
+                        + "|forwarded=" + forwardedHeaders(exchange)
                         + "|body=" + requestBody
                 : "downstream-error " + status;
 
@@ -75,6 +91,25 @@ final class MockDownstream {
         exchange.getResponseHeaders().set("Content-Type", "text/plain");
         exchange.sendResponseHeaders(status, bytes.length);
         exchange.getResponseBody().write(bytes);
+        exchange.close();
+    }
+
+    /**
+     * Emulates the 302 auth-service answers at the OAuth2 entry point: a redirect to the
+     * identity provider, with the callback URL already pointing back at the public origin.
+     * Lets the tests assert the gateway relays a redirect untouched.
+     */
+    private void respondWithIdentityProviderRedirect(HttpExchange exchange, String path)
+            throws IOException {
+        String provider = path.substring(path.lastIndexOf('/') + 1);
+        exchange.getResponseHeaders().set("Location",
+                "https://accounts.google.com/o/oauth2/v2/auth"
+                        + "?client_id=unit-test-only"
+                        + "&redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Flogin%2Foauth2%2Fcode%2F"
+                        + provider
+                        + "&response_type=code&scope=openid"
+                        + "&state=unit-test-state");
+        exchange.sendResponseHeaders(302, -1);
         exchange.close();
     }
 
@@ -108,6 +143,22 @@ final class MockDownstream {
      */
     private static String authorization(HttpExchange exchange) {
         String header = exchange.getRequestHeaders().getFirst("Authorization");
+        return header != null ? header : "absent";
+    }
+
+    /**
+     * The forwarded-header set the gateway produced, so the tests can prove the hop is
+     * described to the downstream while a value the client itself supplied is preserved
+     * rather than silently trusted as the gateway's own.
+     */
+    private static String forwardedHeaders(HttpExchange exchange) {
+        return FORWARD_HEADERS.stream()
+                .map(name -> name + "=" + value(exchange, name))
+                .collect(Collectors.joining(","));
+    }
+
+    private static String value(HttpExchange exchange, String name) {
+        String header = exchange.getRequestHeaders().getFirst(name);
         return header != null ? header : "absent";
     }
 

@@ -19,9 +19,11 @@ public class OpenAPIConfig {
     public OpenAPI hireFlowAuthServiceApi() {
         return new OpenAPI().info(new Info()
                 .title("HireFlow Auth Service API")
-                .description("Registers HireFlow users and manages their profiles. "
-                        + "Responses use JSON, and failures follow the common HireFlow error contract "
-                        + "with timestamp, status, error, code, message and path.")
+                .description("Registers HireFlow users, manages their profiles, and issues the "
+                        + "access tokens every protected HireFlow endpoint accepts. Tokens are "
+                        + "obtained either with email and password or by signing in with Google. "
+                        + "Responses use JSON, and failures follow the common HireFlow error "
+                        + "contract with timestamp, status, error, code, message and path.")
                 .version("1.0.0")
                 .license(new License()
                         .name("Apache License 2.0")
@@ -31,7 +33,10 @@ public class OpenAPIConfig {
                                 .type(SecurityScheme.Type.HTTP)
                                 .scheme("bearer")
                                 .bearerFormat("JWT")
-                                .description("JWT access token issued by POST /api/auth/login. "
-                                        + "Send it as 'Authorization: Bearer <accessToken>'.")));
+                                .description("JWT access token issued by POST /api/auth/login "
+                                        + "after email-and-password verification, or by "
+                                        + "POST /api/auth/oauth2/token after signing in with "
+                                        + "Google. Both produce the identical token. Send it "
+                                        + "as 'Authorization: Bearer <accessToken>'.")));
     }
 }

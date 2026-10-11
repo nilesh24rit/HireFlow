@@ -11,8 +11,8 @@ import org.springframework.cloud.gateway.route.Route;
 import org.springframework.cloud.gateway.route.RouteLocator;
 
 /**
- * Verifies that the gateway application starts and exposes exactly the four HireFlow
- * routes with stable route ids.
+ * Verifies that the gateway application starts and exposes exactly the HireFlow routes
+ * with stable route ids: the four resource routes plus the single Google sign-in route.
  */
 @SpringBootTest
 class GatewayStartupTests {
@@ -21,7 +21,7 @@ class GatewayStartupTests {
     private RouteLocator routeLocator;
 
     @Test
-    void contextLoadsWithFourRoutes() {
+    void contextLoadsWithExactlyTheHireFlowRoutes() {
         List<Route> routes = routeLocator.getRoutes().collectList().block();
 
         assertThat(routes)
@@ -31,6 +31,7 @@ class GatewayStartupTests {
                         "auth-service",
                         "candidate-service",
                         "job-service",
-                        "application-service");
+                        "application-service",
+                        "google-oauth2");
     }
 }
