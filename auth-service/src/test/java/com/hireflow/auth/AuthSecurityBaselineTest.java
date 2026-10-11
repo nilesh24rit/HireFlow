@@ -43,7 +43,8 @@ import com.nimbusds.jwt.SignedJWT;
  * <p>The authentication mechanism is stateless bearer JWT. This baseline observes over real HTTP that:</p>
  *
  * <ul>
- *   <li>the login endpoint is the only public route and issues verifiable tokens;</li>
+ *   <li>the token-issuing endpoints — credential login and the OAuth2 handoff exchange —
+ *       are public and issue verifiable tokens;</li>
  *   <li>protected routes accept a valid {@code Authorization: Bearer <token>} and reject
  *       everything else — no token, garbage, tampered, expired, or signed with another
  *       key — with the common HireFlow 401 contract, the {@code Bearer} challenge and, for failed

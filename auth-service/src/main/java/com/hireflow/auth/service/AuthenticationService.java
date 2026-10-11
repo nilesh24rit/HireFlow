@@ -42,9 +42,6 @@ public class AuthenticationService {
     /** Message shared by every login failure so responses reveal nothing. */
     private static final String INVALID_CREDENTIALS_MESSAGE = "Invalid email or password";
 
-    /** RFC 6750 token type returned by a successful login. */
-    private static final String BEARER_TOKEN_TYPE = "Bearer";
-
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
@@ -96,7 +93,8 @@ public class AuthenticationService {
     public LoginResponse login(LoginRequest request) {
         User user = verifyCredentials(request.email(), request.password());
         IssuedAccessToken accessToken = jwtService.generateAccessToken(user.getId(), user.getRole());
-        return new LoginResponse(accessToken.token(), BEARER_TOKEN_TYPE, accessToken.expiresInSeconds());
+        return new LoginResponse(accessToken.token(), LoginResponse.TOKEN_TYPE,
+                accessToken.expiresInSeconds());
     }
 
     private String failureCategory(User user, boolean passwordMatches) {

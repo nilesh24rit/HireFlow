@@ -178,7 +178,8 @@ class OpenApiDocumentationTest {
 
     @Test
     void documentsLoginEndpointWithoutSecurityRequirement() throws Exception {
-        // Login is the only unauthenticated endpoint: it must carry no bearer requirement.
+        // Login is public — it is how a caller obtains the credential every protected
+        // endpoint requires — so it must carry no bearer requirement of its own.
         mockMvc.perform(get("/v3/api-docs").with(user("openapi-test")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.paths['/api/auth/login'].post.security").doesNotExist());

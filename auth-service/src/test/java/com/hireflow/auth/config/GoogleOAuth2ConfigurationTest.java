@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
@@ -137,18 +138,20 @@ class GoogleOAuth2ConfigurationTest {
 
     @Test
     void callbackPathIsPublicButGrantsNothingByItself() throws Exception {
-        // Without a matching authorization request (state cookie) the callback must not
-        // authenticate anyone; the entry point above is the only way into the flow.
-        // (Commit 1 renders this through Spring Security's default failure redirect;
-        // the dedicated JSON failure handler replaces it once implemented.)
+        // Without a matching authorization request (the state the entry point held in the
+        // browser's transient session) the callback authenticates nobody. The dedicated
+        // failure handler renders it as an unverifiable request in the common error
+        // contract, and no token material of any kind appears.
         MvcResult result = mockMvc.perform(get("/login/oauth2/code/google")
                         .param("code", "unit-test-code")
                         .param("state", "unit-test-state"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
                 .andReturn();
 
-        assertThat(result.getResponse().getStatus()).isIn(302, 400, 401);
         assertThat(result.getResponse().getContentAsString())
                 .doesNotContain("accessToken")
+                .doesNotContain("handoffCode")
                 .doesNotContain("eyJ");
     }
 }

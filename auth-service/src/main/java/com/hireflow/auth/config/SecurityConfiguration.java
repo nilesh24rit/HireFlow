@@ -12,6 +12,8 @@ import org.springframework.security.oauth2.client.web.HttpSessionOAuth2Authoriza
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import com.hireflow.auth.security.GoogleOAuth2FailureHandler;
+import com.hireflow.auth.security.GoogleOAuth2SuccessHandler;
 import com.hireflow.auth.security.JwtAuthenticationFilter;
 import com.hireflow.auth.security.SecurityErrorResponseHandler;
 
@@ -23,8 +25,9 @@ import com.hireflow.auth.security.SecurityErrorResponseHandler;
  *
  * <ul>
  *   <li><b>Public endpoints are enumerated, never wildcarded.</b> {@code POST /api/auth/login}
- *       (credential login) plus the two standard OAuth2 endpoints — the entry point
- *       {@code GET /oauth2/authorization/google} and the callback
+ *       (credential login), {@code POST /api/auth/oauth2/token} (redeeming the single-use
+ *       handoff code a completed Google sign-in returns) plus the two standard OAuth2
+ *       endpoints — the entry point {@code GET /oauth2/authorization/google} and the callback
  *       {@code GET /login/oauth2/code/google} — are the only {@code permitAll} rules. Every
  *       other endpoint requires authentication; there is no wildcard public access, so
  *       nothing can be exposed accidentally. Swagger ({@code /v3/api-docs},
@@ -42,7 +45,11 @@ import com.hireflow.auth.security.SecurityErrorResponseHandler;
  *       this chain adds {@code oauth2Login}; without them the service starts with the same
  *       chain and the OAuth2 endpoints simply do not exist. Both password and Google login
  *       produce the identical HireFlow JWT — there is one token format and one protected
- *       surface.</li>
+ *       surface. The completion of a Google sign-in is handled by
+ *       {@link GoogleOAuth2SuccessHandler} and {@link GoogleOAuth2FailureHandler}: the
+ *       token itself is never placed in a redirect URL, the client redeems a single-use
+ *       handoff code for it instead, and every refusal is rendered in the common error
+ *       contract.</li>
  *   <li><b>The API stays session-free; the OAuth2 dance gets transient state only.</b> The
  *       authorization-code flow needs somewhere to keep its {@code state} (the CSRF
  *       protection of the browser redirect) between the entry point and the callback. That
@@ -81,6 +88,9 @@ public class SecurityConfiguration {
      * @param clientRegistrationRepositories the OAuth2 client registrations contributed by
      *                                      {@link GoogleOAuth2Configuration}; absent when
      *                                      Google credentials are not configured
+     * @param googleOAuth2SuccessHandler completes a successful Google sign-in and issues the
+     *                                   one-time handoff for the token
+     * @param googleOAuth2FailureHandler renders a failed Google sign-in in the error contract
      * @return the security filter chain for this service
      * @throws Exception when the security rules cannot be built
      */
@@ -88,7 +98,9 @@ public class SecurityConfiguration {
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
             JwtAuthenticationFilter jwtAuthenticationFilter,
             SecurityErrorResponseHandler securityErrorResponseHandler,
-            ObjectProvider<ClientRegistrationRepository> clientRegistrationRepositories) throws Exception {
+            ObjectProvider<ClientRegistrationRepository> clientRegistrationRepositories,
+            GoogleOAuth2SuccessHandler googleOAuth2SuccessHandler,
+            GoogleOAuth2FailureHandler googleOAuth2FailureHandler) throws Exception {
         http
                 // No server-side session holds authentication: every request is
                 // authenticated fresh from the Authorization header. The OAuth2 flow below
@@ -105,6 +117,11 @@ public class SecurityConfiguration {
                         // Credential login is a public endpoint: it is how a caller
                         // obtains the credentials for every protected endpoint.
                         .requestMatchers("/api/auth/login").permitAll()
+                        // Redeeming the one-time handoff code a completed Google sign-in
+                        // returns. Public because the caller holds no bearer token yet —
+                        // this is exactly how they get one. The code itself is the
+                        // credential: single-use, short-lived and unguessable.
+                        .requestMatchers("/api/auth/oauth2/token").permitAll()
                         // The standard Spring Security OAuth2 endpoints. The entry point
                         // redirects the browser to Google; the callback receives Google's
                         // redirect. Both are safe to expose: the callback is protected by
@@ -131,7 +148,13 @@ public class SecurityConfiguration {
             http.oauth2Login(oauth2 -> oauth2
                     .authorizationEndpoint(authorization -> authorization
                             .authorizationRequestRepository(
-                                    new HttpSessionOAuth2AuthorizationRequestRepository())));
+                                    new HttpSessionOAuth2AuthorizationRequestRepository()))
+                    // The two handlers decide how a Google sign-in finishes: the token is
+                    // issued with the ordinary JwtService and handed to the client through
+                    // a single-use code rather than a redirect URL, and every refusal is
+                    // written in the common HireFlow error contract.
+                    .successHandler(googleOAuth2SuccessHandler)
+                    .failureHandler(googleOAuth2FailureHandler));
         }
 
         return http.build();

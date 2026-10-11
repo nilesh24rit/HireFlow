@@ -19,4 +19,11 @@ public record LoginResponse(
         @Schema(description = "Seconds until the access token expires",
                 requiredMode = Schema.RequiredMode.REQUIRED, example = "3600")
         long expiresIn) {
+
+    /**
+     * The RFC 6750 {@code tokenType} carried by every login response, whichever way the
+     * token was obtained — password login or Google sign-in. Defined here so every issuer
+     * reports the same scheme without duplicating the literal.
+     */
+    public static final String TOKEN_TYPE = "Bearer";
 }
