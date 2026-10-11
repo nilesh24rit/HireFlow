@@ -63,7 +63,9 @@ public class GlobalExceptionHandler {
      * only and are never sent to the caller.
      */
     private static final Map<String, String> KNOWN_UNIQUE_CONSTRAINTS = Map.of(
-            "uk_users_email", "A user with this email already exists");
+            "uk_users_email", "A user with this email already exists",
+            "uk_user_oauth_identities_provider_subject",
+            "This external account is already linked to a HireFlow user");
 
     // ------------------------------------------------------------------
     // Domain exceptions thrown by services

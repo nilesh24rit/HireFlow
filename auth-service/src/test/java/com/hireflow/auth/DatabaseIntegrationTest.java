@@ -73,6 +73,6 @@ class DatabaseIntegrationTest {
                 .contains("classpath:db/migration");
         assertThat(flyway.info().applied())
                 .extracting(applied -> applied.getVersion().toString())
-                .containsExactly("1", "2");
+                .containsExactly("1", "2", "3");
     }
 }
