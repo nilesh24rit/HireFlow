@@ -109,6 +109,21 @@ public class GlobalExceptionHandler {
         return respond(HttpStatus.UNAUTHORIZED, ErrorCode.UNAUTHENTICATED, ex.getMessage(), request, null);
     }
 
+    /**
+     * Maps a deliberate Google identity refusal onto its own status and error code.
+     *
+     * <p>Each {@link OAuth2IdentityException.Reason} fixes the status, code and a safe
+     * message, so an unverified email answers {@code 401}, a disabled account {@code 403},
+     * and an account-conflict {@code 409} — consistently whether the refusal surfaced
+     * through the OAuth2 callback or the authenticated linking endpoint. No provider
+     * token, claim value or stack trace is ever echoed.</p>
+     */
+    @ExceptionHandler(OAuth2IdentityException.class)
+    public ResponseEntity<ApiErrorResponse> handleOAuth2Identity(OAuth2IdentityException ex,
+            HttpServletRequest request) {
+        return respond(ex.reason().status(), ex.reason().errorCode(), ex.getMessage(), request, null);
+    }
+
     // ------------------------------------------------------------------
     // Request validation and malformed input
     // ------------------------------------------------------------------
