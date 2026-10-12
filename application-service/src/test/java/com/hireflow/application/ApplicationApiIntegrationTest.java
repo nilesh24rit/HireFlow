@@ -348,7 +348,7 @@ class ApplicationApiIntegrationTest {
                     .issuer("hireflow-auth")
                     .issueTime(new Date())
                     .expirationTime(Date.from(Instant.now().plusSeconds(3600)))
-                    .claim("role", "CANDIDATE")
+                    .claim("role", "ADMIN")
                     .build();
             SignedJWT jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256), claims);
             jwt.sign(new MACSigner(TestSigningKeys.VALID.getBytes(StandardCharsets.UTF_8)));

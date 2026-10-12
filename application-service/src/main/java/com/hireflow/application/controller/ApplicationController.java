@@ -35,9 +35,31 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
+/**
+ * REST endpoints for job application management.
+ *
+ * <p>Every endpoint requires {@code Authorization: Bearer <token>}.
+ * Role and ownership rules are enforced by {@code @PreAuthorize} on
+ * {@link ApplicationService} methods.</p>
+ *
+ * <ul>
+ *   <li><b>Create</b> — CANDIDATE (own candidate profile only) or ADMIN.</li>
+ *   <li><b>Read by application id</b> — CANDIDATE (own application), RECRUITER (own jobs), or ADMIN.</li>
+ *   <li><b>Read by candidate id</b> — CANDIDATE (own applications only) or ADMIN.</li>
+ *   <li><b>Read by job id</b> — RECRUITER (own jobs only) or ADMIN.</li>
+ *   <li><b>Update status</b> — RECRUITER (own jobs only) or ADMIN.</li>
+ *   <li><b>Delete (withdraw)</b> — CANDIDATE (own application only) or ADMIN.</li>
+ * </ul>
+ *
+ * <p>Authentication failures respond with {@code 401}; authorization failures
+ * with {@code 403}. Both follow the common HireFlow error contract.</p>
+ */
 @RestController
 @RequestMapping(value = "/api/applications", produces = MediaType.APPLICATION_JSON_VALUE)
-@Tag(name = "Applications", description = "Candidate job application lifecycle for the application service")
+@Tag(name = "Applications", description = "Candidate job application lifecycle management. All endpoints "
+        + "require a bearer token. Role rules: create and candidate lookups require CANDIDATE (own profile) "
+        + "or ADMIN; job applications and status updates require RECRUITER (own jobs) or ADMIN; "
+        + "401 = missing or invalid credentials, 403 = authenticated but not permitted.")
 @SecurityRequirement(name = "bearerAuth")
 @ApiResponse(responseCode = "401", description = "Missing or invalid bearer token",
         content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
@@ -52,12 +74,15 @@ public class ApplicationController {
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Create an application",
             description = "Submits an application for a candidate to a job. "
+                    + "Allowed for CANDIDATE (own profile) and ADMIN roles. "
                     + "The application always starts with the APPLIED status and a candidate "
                     + "may only apply to the same job once.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Application created",
                     content = @Content(schema = @Schema(implementation = ApplicationResponse.class))),
             @ApiResponse(responseCode = "400", description = "Invalid request payload",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "Not permitted or not candidate owner",
                     content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
             @ApiResponse(responseCode = "409", description = "Candidate already applied to the job",
                     content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
@@ -74,11 +99,14 @@ public class ApplicationController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get an application by id",
-            description = "Returns the application identified by the given UUID.")
+            description = "Returns the application identified by the given UUID. "
+                    + "Accessible by the owning CANDIDATE, the job's RECRUITER, or ADMIN.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Application found",
                     content = @Content(schema = @Schema(implementation = ApplicationResponse.class))),
             @ApiResponse(responseCode = "400", description = "Malformed application id",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "Access denied to application",
                     content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
             @ApiResponse(responseCode = "404", description = "Application not found",
                     content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
@@ -92,11 +120,13 @@ public class ApplicationController {
     @GetMapping("/candidate/{candidateId}")
     @Operation(summary = "Get applications by candidate id",
             description = "Returns all applications submitted by the given candidate. "
-                    + "The list is empty when the candidate has not applied to any job.")
+                    + "CANDIDATE may only access their own applications; ADMIN may access any.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Applications found (possibly an empty list)",
                     content = @Content(array = @ArraySchema(schema = @Schema(implementation = ApplicationResponse.class)))),
             @ApiResponse(responseCode = "400", description = "Malformed candidate id",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "Not candidate owner or not ADMIN",
                     content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
             @ApiResponse(responseCode = "500", description = "Unexpected server error",
                     content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))})
@@ -108,11 +138,13 @@ public class ApplicationController {
     @GetMapping("/job/{jobId}")
     @Operation(summary = "Get applications by job id",
             description = "Returns all applications received by the given job. "
-                    + "The list is empty when the job has received no applications.")
+                    + "RECRUITER may only access applications for their own jobs; ADMIN may access any.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Applications found (possibly an empty list)",
                     content = @Content(array = @ArraySchema(schema = @Schema(implementation = ApplicationResponse.class)))),
             @ApiResponse(responseCode = "400", description = "Malformed job id",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "Not job owner or not ADMIN",
                     content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
             @ApiResponse(responseCode = "500", description = "Unexpected server error",
                     content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))})
@@ -123,11 +155,14 @@ public class ApplicationController {
 
     @PatchMapping(value = "/{id}/status", consumes = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Update an application status",
-            description = "Moves the application to the supplied status, for example UNDER_REVIEW or HIRED.")
+            description = "Moves the application to the supplied status. "
+                    + "RECRUITER may only update status for jobs they own; ADMIN may update any.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Status updated",
                     content = @Content(schema = @Schema(implementation = ApplicationResponse.class))),
             @ApiResponse(responseCode = "400", description = "Missing, unknown or invalid status",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "Not job owner or not ADMIN",
                     content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
             @ApiResponse(responseCode = "404", description = "Application not found",
                     content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
@@ -142,11 +177,13 @@ public class ApplicationController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "Delete an application",
-            description = "Removes the application identified by the given UUID, "
-                    + "representing a withdrawal by the candidate.")
+            description = "Removes the application identified by the given UUID, representing a withdrawal. "
+                    + "CANDIDATE may only withdraw their own application; ADMIN may delete any.")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Application deleted"),
             @ApiResponse(responseCode = "400", description = "Malformed application id",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "Not application owner or not ADMIN",
                     content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
             @ApiResponse(responseCode = "404", description = "Application not found",
                     content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))),
