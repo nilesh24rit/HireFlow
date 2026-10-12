@@ -15,6 +15,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.hireflow.auth.dto.CreateUserRequest;
 import com.hireflow.auth.dto.UpdateUserRequest;
+import com.hireflow.auth.dto.UpdateUserRoleRequest;
 import com.hireflow.auth.dto.UserResponse;
 import com.hireflow.auth.entity.User;
 import com.hireflow.auth.entity.UserRole;
@@ -49,7 +50,7 @@ class UserServiceTest {
     @Test
     void createsUserSuccessfully() {
         CreateUserRequest request = new CreateUserRequest(
-                "jane@example.com", "Jane", "Doe", RAW_PASSWORD, UserRole.CANDIDATE);
+                "jane@example.com", "Jane", "Doe", RAW_PASSWORD);
         when(userRepository.existsByEmail("jane@example.com")).thenReturn(false);
         when(userRepository.saveAndFlush(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -65,9 +66,26 @@ class UserServiceTest {
     }
 
     @Test
+    void assignsTheDefaultCandidateRoleOnCreateRegardlessOfCaller() {
+        // The create payload has no role component, so the only role that can end up on a
+        // new account is the default this method assigns. Role granting happens elsewhere,
+        // behind its own ADMIN-only rule.
+        CreateUserRequest request = new CreateUserRequest(
+                "jane@example.com", "Jane", "Doe", RAW_PASSWORD);
+        when(userRepository.existsByEmail("jane@example.com")).thenReturn(false);
+        when(userRepository.saveAndFlush(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        userService.createUser(request);
+
+        ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).saveAndFlush(saved.capture());
+        assertThat(saved.getValue().getRole()).isEqualTo(UserRole.CANDIDATE);
+    }
+
+    @Test
     void storesOnlyABcryptHashOfThePassword() {
         CreateUserRequest request = new CreateUserRequest(
-                "jane@example.com", "Jane", "Doe", RAW_PASSWORD, UserRole.CANDIDATE);
+                "jane@example.com", "Jane", "Doe", RAW_PASSWORD);
         when(userRepository.existsByEmail("jane@example.com")).thenReturn(false);
         when(userRepository.saveAndFlush(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -83,7 +101,7 @@ class UserServiceTest {
     @Test
     void rejectsDuplicateEmailBeforeSaving() {
         CreateUserRequest request = new CreateUserRequest(
-                "jane@example.com", "Jane", "Doe", RAW_PASSWORD, UserRole.CANDIDATE);
+                "jane@example.com", "Jane", "Doe", RAW_PASSWORD);
         when(userRepository.existsByEmail("jane@example.com")).thenReturn(true);
 
         assertThatThrownBy(() -> userService.createUser(request))
@@ -96,7 +114,7 @@ class UserServiceTest {
     @Test
     void propagatesDatabaseConstraintViolationForGlobalHandling() {
         CreateUserRequest request = new CreateUserRequest(
-                "jane@example.com", "Jane", "Doe", RAW_PASSWORD, UserRole.CANDIDATE);
+                "jane@example.com", "Jane", "Doe", RAW_PASSWORD);
         when(userRepository.existsByEmail("jane@example.com")).thenReturn(false);
         when(userRepository.saveAndFlush(any(User.class)))
                 .thenThrow(new DataIntegrityViolationException("uk_users_email"));
@@ -189,6 +207,46 @@ class UserServiceTest {
 
         assertThatThrownBy(() -> userService.deleteUser(id)).isInstanceOf(ResourceNotFoundException.class);
         verify(userRepository, never()).delete(any(User.class));
+    }
+
+    @Test
+    void assignsChosenRoleToExistingUser() {
+        UUID id = UUID.randomUUID();
+        User user = user();
+        when(userRepository.findById(id)).thenReturn(Optional.of(user));
+        when(userRepository.saveAndFlush(user)).thenReturn(user);
+
+        UserResponse response = userService.assignUserRole(id, new UpdateUserRoleRequest(UserRole.RECRUITER));
+
+        assertThat(response.role()).isEqualTo(UserRole.RECRUITER);
+        // The change is persisted, not merely reflected in the response: tokens minted
+        // from now on read this role from the database.
+        assertThat(user.getRole()).isEqualTo(UserRole.RECRUITER);
+        verify(userRepository).saveAndFlush(user);
+    }
+
+    @Test
+    void assignsAdministratorRoleThroughTheSameDedicatedPath() {
+        UUID id = UUID.randomUUID();
+        User user = user();
+        when(userRepository.findById(id)).thenReturn(Optional.of(user));
+        when(userRepository.saveAndFlush(user)).thenReturn(user);
+
+        UserResponse response = userService.assignUserRole(id, new UpdateUserRoleRequest(UserRole.ADMIN));
+
+        assertThat(response.role()).isEqualTo(UserRole.ADMIN);
+        assertThat(user.getRole()).isEqualTo(UserRole.ADMIN);
+    }
+
+    @Test
+    void throwsWhenAssigningRoleToMissingUser() {
+        UUID id = UUID.randomUUID();
+        when(userRepository.findById(id)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.assignUserRole(id, new UpdateUserRoleRequest(UserRole.ADMIN)))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining(id.toString());
+        verify(userRepository, never()).saveAndFlush(any(User.class));
     }
 
     private User user() {

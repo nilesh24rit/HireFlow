@@ -19,12 +19,12 @@ class UserRequestValidationTest {
     private static final String VALID_PASSWORD = "Sup3r-Secret!";
 
     private static CreateUserRequest createRequest(String email, String firstName, String lastName,
-            String password, UserRole role) {
-        return new CreateUserRequest(email, firstName, lastName, password, role);
+            String password) {
+        return new CreateUserRequest(email, firstName, lastName, password);
     }
 
     private static CreateUserRequest validCreateRequest() {
-        return createRequest("jane@example.com", "Jane", "Doe", VALID_PASSWORD, UserRole.CANDIDATE);
+        return createRequest("jane@example.com", "Jane", "Doe", VALID_PASSWORD);
     }
 
     @Test
@@ -36,56 +36,56 @@ class UserRequestValidationTest {
 
     @Test
     void rejectsMissingEmail() {
-        CreateUserRequest request = createRequest(null, "Jane", "Doe", VALID_PASSWORD, UserRole.CANDIDATE);
+        CreateUserRequest request = createRequest(null, "Jane", "Doe", VALID_PASSWORD);
 
         assertThat(violatedProperties(request)).contains("email");
     }
 
     @Test
     void rejectsBlankEmail() {
-        CreateUserRequest request = createRequest("   ", "Jane", "Doe", VALID_PASSWORD, UserRole.CANDIDATE);
+        CreateUserRequest request = createRequest("   ", "Jane", "Doe", VALID_PASSWORD);
 
         assertThat(violatedProperties(request)).contains("email");
     }
 
     @Test
     void rejectsMalformedEmail() {
-        CreateUserRequest request = createRequest("not-an-email", "Jane", "Doe", VALID_PASSWORD, UserRole.CANDIDATE);
+        CreateUserRequest request = createRequest("not-an-email", "Jane", "Doe", VALID_PASSWORD);
 
         assertThat(violatedProperties(request)).contains("email");
     }
 
     @Test
     void rejectsBlankFirstName() {
-        CreateUserRequest request = createRequest("jane@example.com", " ", "Doe", VALID_PASSWORD, UserRole.CANDIDATE);
+        CreateUserRequest request = createRequest("jane@example.com", " ", "Doe", VALID_PASSWORD);
 
         assertThat(violatedProperties(request)).contains("firstName");
     }
 
     @Test
     void rejectsBlankLastName() {
-        CreateUserRequest request = createRequest("jane@example.com", "Jane", " ", VALID_PASSWORD, UserRole.CANDIDATE);
+        CreateUserRequest request = createRequest("jane@example.com", "Jane", " ", VALID_PASSWORD);
 
         assertThat(violatedProperties(request)).contains("lastName");
     }
 
     @Test
     void rejectsMissingPassword() {
-        CreateUserRequest request = createRequest("jane@example.com", "Jane", "Doe", null, UserRole.CANDIDATE);
+        CreateUserRequest request = createRequest("jane@example.com", "Jane", "Doe", null);
 
         assertThat(violatedProperties(request)).contains("password");
     }
 
     @Test
     void rejectsBlankPassword() {
-        CreateUserRequest request = createRequest("jane@example.com", "Jane", "Doe", "   ", UserRole.CANDIDATE);
+        CreateUserRequest request = createRequest("jane@example.com", "Jane", "Doe", "   ");
 
         assertThat(violatedProperties(request)).contains("password");
     }
 
     @Test
     void rejectsTooShortPassword() {
-        CreateUserRequest request = createRequest("jane@example.com", "Jane", "Doe", "Sh0rt!", UserRole.CANDIDATE);
+        CreateUserRequest request = createRequest("jane@example.com", "Jane", "Doe", "Sh0rt!");
 
         assertThat(violatedProperties(request)).contains("password");
     }
@@ -93,22 +93,27 @@ class UserRequestValidationTest {
     @Test
     void rejectsOverlongPassword() {
         CreateUserRequest request = createRequest(
-                "jane@example.com", "Jane", "Doe", "x".repeat(73), UserRole.CANDIDATE);
+                "jane@example.com", "Jane", "Doe", "x".repeat(73));
 
         assertThat(violatedProperties(request)).contains("password");
     }
 
     @Test
-    void rejectsMissingRole() {
-        CreateUserRequest request = createRequest("jane@example.com", "Jane", "Doe", VALID_PASSWORD, null);
+    void hasNoRoleFieldToValidateBecauseRoleIsNeverAcceptedOnCreate() {
+        // The create payload is deliberately a four-field record: there is no role
+        // component to be blank or missing, because registration can never choose one.
+        CreateUserRequest request = validCreateRequest();
 
-        assertThat(violatedProperties(request)).contains("role");
+        assertThat(CreateUserRequest.class.getRecordComponents())
+                .extracting(component -> component.getName())
+                .doesNotContain("role");
+        assertThat(violatedProperties(request)).doesNotContain("role");
     }
 
     @Test
     void rejectsOverlongEmail() {
         CreateUserRequest request = createRequest(
-                "a".repeat(309) + "@example.com", "Jane", "Doe", VALID_PASSWORD, UserRole.CANDIDATE);
+                "a".repeat(309) + "@example.com", "Jane", "Doe", VALID_PASSWORD);
 
         assertThat(violatedProperties(request)).contains("email");
     }
@@ -116,7 +121,7 @@ class UserRequestValidationTest {
     @Test
     void rejectsOverlongFirstName() {
         CreateUserRequest request = createRequest(
-                "jane@example.com", "x".repeat(101), "Doe", VALID_PASSWORD, UserRole.CANDIDATE);
+                "jane@example.com", "x".repeat(101), "Doe", VALID_PASSWORD);
 
         assertThat(violatedProperties(request)).contains("firstName");
     }
@@ -124,7 +129,7 @@ class UserRequestValidationTest {
     @Test
     void rejectsOverlongLastName() {
         CreateUserRequest request = createRequest(
-                "jane@example.com", "Jane", "x".repeat(101), VALID_PASSWORD, UserRole.CANDIDATE);
+                "jane@example.com", "Jane", "x".repeat(101), VALID_PASSWORD);
 
         assertThat(violatedProperties(request)).contains("lastName");
     }
@@ -183,6 +188,22 @@ class UserRequestValidationTest {
         UpdateUserRequest request = new UpdateUserRequest("x".repeat(101), "x".repeat(101));
 
         assertThat(violatedProperties(request)).contains("firstName", "lastName");
+    }
+
+    @Test
+    void acceptsValidUpdateUserRoleRequest() {
+        UpdateUserRoleRequest request = new UpdateUserRoleRequest(UserRole.RECRUITER);
+
+        assertThat(VALIDATOR.validate(request)).isEmpty();
+    }
+
+    @Test
+    void rejectsMissingRoleOnUpdateUserRoleRequest() {
+        // The dedicated role payload has exactly one field, and it may not be absent:
+        // the ADMIN-only endpoint must receive an explicit, deliberate role choice.
+        UpdateUserRoleRequest request = new UpdateUserRoleRequest(null);
+
+        assertThat(violatedProperties(request)).contains("role");
     }
 
     private Set<String> violatedProperties(Object target) {

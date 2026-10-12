@@ -5,10 +5,22 @@ import com.hireflow.auth.entity.UserRole;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
-@Schema(description = "Payload used to register a new user")
+/**
+ * Payload used to register a new HireFlow account.
+ *
+ * <p><b>The role is deliberately not accepted here.</b> Every account created through this
+ * endpoint receives the fixed default {@link UserRole#CANDIDATE}: registration can never
+ * choose, suggest or escalate a role, because there is no field to carry one. Roles are
+ * assigned only by an administrator through the dedicated role endpoint
+ * ({@code PUT /api/users/{id}/role}), which has its own DTO and its own ADMIN-only rule.
+ * This is what makes self-privilege escalation through creation impossible rather than
+ * merely filtered.</p>
+ */
+@Schema(description = "Payload used to register a new HireFlow account. The role is deliberately "
+        + "not accepted: accounts created through this endpoint always receive the default CANDIDATE "
+        + "role, and roles are assigned separately by an administrator.")
 public record CreateUserRequest(
         @NotBlank(message = "email must not be blank")
         @Email(message = "email must be a valid email address")
@@ -32,11 +44,7 @@ public record CreateUserRequest(
                 + "Stored only as a BCrypt hash; never returned by any endpoint.",
                 accessMode = Schema.AccessMode.WRITE_ONLY,
                 requiredMode = Schema.RequiredMode.REQUIRED, example = "S3cure-Pass!")
-        String password,
-        @NotNull(message = "role must not be null")
-        @Schema(description = "Role assigned to the user",
-                requiredMode = Schema.RequiredMode.REQUIRED, example = "CANDIDATE")
-        UserRole role) {
+        String password) {
 
     /**
      * Explicit {@code toString} so a {@link CreateUserRequest} can never leak the raw
@@ -45,6 +53,6 @@ public record CreateUserRequest(
     @Override
     public String toString() {
         return "CreateUserRequest[email=" + email + ", firstName=" + firstName
-                + ", lastName=" + lastName + ", password=[PROTECTED], role=" + role + "]";
+                + ", lastName=" + lastName + ", password=[PROTECTED]]";
     }
 }

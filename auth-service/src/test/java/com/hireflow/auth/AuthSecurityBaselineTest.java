@@ -49,6 +49,9 @@ import com.nimbusds.jwt.SignedJWT;
  *       everything else — no token, garbage, tampered, expired, or signed with another
  *       key — with the common HireFlow 401 contract, the {@code Bearer} challenge and, for failed
  *       tokens, {@code error="invalid_token"};</li>
+ *   <li>a valid token whose ROLE refuses the operation gets the 403 contract instead —
+ *       authorization failures are never reported as 401, carry no challenge and leave
+ *       the data untouched;</li>
  *   <li>rejected requests keep the ORIGINAL request path (no {@code /error} dispatch
  *       rewrites it), no session cookie is ever issued, and no form login page exists;</li>
  *   <li>Swagger stays behind authentication, the deliberate policy for this service.</li>
@@ -187,6 +190,52 @@ class AuthSecurityBaselineTest {
     }
 
     @Test
+    void roleChangeRefusalIsA403ContractAndNeverA401OverRealHttp() throws Exception {
+        User candidate = seedUser();
+        User target = seedUser();
+        String token = jwtService.generateAccessToken(candidate.getId(), candidate.getRole()).token();
+
+        HttpResponse<String> response = put("/api/users/" + target.getId() + "/role",
+                "{\"role\":\"ADMIN\"}", "Bearer " + token);
+
+        // The token authenticated; the role rule refused it. That is an authorization
+        // failure: 403 in the common error contract, no Bearer challenge (that belongs
+        // to 401), no stack trace, and the original request path preserved.
+        assertThat(response.statusCode()).isEqualTo(403);
+        assertThat(response.headers().firstValue("WWW-Authenticate")).isEmpty();
+        assertThat(response.headers().firstValue("Content-Type"))
+                .hasValueSatisfying(type -> assertThat(type).startsWith("application/json"));
+        assertThat(response.body())
+                .contains("\"status\":403")
+                .contains("\"error\":\"Forbidden\"")
+                .contains("\"code\":\"FORBIDDEN\"")
+                .contains("\"message\":\"Access denied\"")
+                .contains("\"path\":\"/api/users/" + target.getId() + "/role\"")
+                .doesNotContain("/error")
+                .doesNotContain("Exception")
+                .doesNotContain("trace");
+
+        // The refused attempt changed nothing: the target keeps its role.
+        assertThat(userRepository.findById(target.getId()).orElseThrow().getRole())
+                .isEqualTo(UserRole.CANDIDATE);
+    }
+
+    @Test
+    void administratorAssignsARoleOverRealHttp() throws Exception {
+        User administrator = seedUser(UserRole.ADMIN);
+        User target = seedUser();
+        String token = jwtService.generateAccessToken(administrator.getId(), administrator.getRole()).token();
+
+        HttpResponse<String> response = put("/api/users/" + target.getId() + "/role",
+                "{\"role\":\"RECRUITER\"}", "Bearer " + token);
+
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.body()).contains("\"role\":\"RECRUITER\"");
+        assertThat(userRepository.findById(target.getId()).orElseThrow().getRole())
+                .isEqualTo(UserRole.RECRUITER);
+    }
+
+    @Test
     void postWithoutTokenIsStillRejectedWith401() throws Exception {
         HttpResponse<String> response = post("/api/users", createUserBody(), null);
 
@@ -267,6 +316,16 @@ class AuthSecurityBaselineTest {
         return send(builder.build());
     }
 
+    private HttpResponse<String> put(String path, String body, String authorization) throws Exception {
+        HttpRequest.Builder builder = request(path)
+                .header("Content-Type", "application/json")
+                .PUT(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8));
+        if (authorization != null) {
+            builder.header("Authorization", authorization);
+        }
+        return send(builder.build());
+    }
+
     private HttpResponse<String> send(HttpRequest request) throws IOException, InterruptedException {
         return httpClient().send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
     }
@@ -278,11 +337,15 @@ class AuthSecurityBaselineTest {
     }
 
     private User seedUser() {
+        return seedUser(UserRole.CANDIDATE);
+    }
+
+    private User seedUser(UserRole role) {
         User user = new User();
         user.setEmail("baseline-" + UUID.randomUUID() + "@example.com");
         user.setFirstName("Baseline");
         user.setLastName("User");
-        user.setRole(UserRole.CANDIDATE);
+        user.setRole(role);
         user.setPasswordHash(passwordEncoder.encode(RAW_PASSWORD));
         return userRepository.saveAndFlush(user);
     }
@@ -292,8 +355,9 @@ class AuthSecurityBaselineTest {
     }
 
     private String createUserBody() {
+        // No role field: the payload cannot choose one, so the account is born a CANDIDATE.
         return """
-                {"email":"baseline-create-%s@example.com","firstName":"Baseline","lastName":"Create","password":"Sup3r-Secret!","role":"CANDIDATE"}
+                {"email":"baseline-create-%s@example.com","firstName":"Baseline","lastName":"Create","password":"Sup3r-Secret!"}
                 """.formatted(UUID.randomUUID());
     }
 }

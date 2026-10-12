@@ -16,6 +16,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -80,6 +82,8 @@ class OpenApiDocumentationTest {
                 .andExpect(jsonPath("$.paths['/api/users/{id}'].put").exists())
                 .andExpect(jsonPath("$.paths['/api/users/{id}'].delete").exists())
                 .andExpect(jsonPath("$.paths['/api/users/{id}']").exists())
+                .andExpect(jsonPath("$.paths['/api/users/{id}/role']").exists())
+                .andExpect(jsonPath("$.paths['/api/users/{id}/role'].put").exists())
                 .andExpect(jsonPath("$.paths['/api/users/email/{email}']").exists())
                 .andExpect(jsonPath("$.paths['/api/users'].post.tags[0]").value("Users"))
                 .andExpect(jsonPath("$.paths['/api/users'].post.responses['201']").exists())
@@ -155,7 +159,33 @@ class OpenApiDocumentationTest {
                 .andExpect(jsonPath("$.paths['/api/users/{id}'].get.security[0].bearerAuth").exists())
                 .andExpect(jsonPath("$.paths['/api/users/email/{email}'].get.security[0].bearerAuth").exists())
                 .andExpect(jsonPath("$.paths['/api/users/{id}'].put.security[0].bearerAuth").exists())
+                .andExpect(jsonPath("$.paths['/api/users/{id}/role'].put.security[0].bearerAuth").exists())
                 .andExpect(jsonPath("$.paths['/api/users/{id}'].delete.security[0].bearerAuth").exists());
+    }
+
+    @Test
+    void documentsRoleBasedAccessControl() throws Exception {
+        mockMvc.perform(get("/v3/api-docs").with(user("openapi-test")))
+                .andExpect(status().isOk())
+                // The single role-writing endpoint: dedicated payload, dedicated operation,
+                // bearer-protected, with the 403 refusal declared against the shared contract.
+                .andExpect(jsonPath("$.paths['/api/users/{id}/role'].put.responses['403']"
+                        + ".content['application/json'].schema['$ref']")
+                        .value("#/components/schemas/ApiErrorResponse"))
+                .andExpect(jsonPath("$.components.schemas.UpdateUserRoleRequest.properties.role").exists())
+                // 403 is documented on every operation behind a role or ownership rule.
+                .andExpect(jsonPath("$.paths['/api/users/{id}'].get.responses['403']").exists())
+                .andExpect(jsonPath("$.paths['/api/users/email/{email}'].get.responses['403']").exists())
+                .andExpect(jsonPath("$.paths['/api/users/{id}'].put.responses['403']").exists())
+                .andExpect(jsonPath("$.paths['/api/users/{id}'].delete.responses['403']").exists())
+                // The create payload has no role component — registration can never choose
+                // one — and the profile payload does not accept one either, so the role-
+                // carrying schema exists exactly once, on the ADMIN-only endpoint.
+                .andExpect(jsonPath("$.components.schemas.CreateUserRequest.properties.role").doesNotExist())
+                .andExpect(jsonPath("$.components.schemas.UpdateUserRequest.properties.role").doesNotExist())
+                // The rules themselves are stated where a reader looks first: the Users tag.
+                .andExpect(jsonPath("$.tags[?(@.name == 'Users')].description",
+                        hasItem(containsString("ADMIN"))));
     }
 
     @Test

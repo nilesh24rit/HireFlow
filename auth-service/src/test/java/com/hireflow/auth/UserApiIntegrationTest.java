@@ -13,6 +13,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.web.context.WebApplicationContext;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -37,6 +38,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup;
 
+/**
+ * CRUD contract of {@code /api/users}, executed through the full filter chain so the
+ * Step 15 authorization rules are active: creation is open to any authenticated caller
+ * (with the default role), reads and updates of a record need its owner or an
+ * administrator, and email lookup, deletion and role assignment are administrator-only.
+ * The authorization matrix itself is exercised by
+ * {@link UserManagementAuthorizationIntegrationTest}.
+ */
 @Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest
 class UserApiIntegrationTest {
@@ -77,7 +86,7 @@ class UserApiIntegrationTest {
 
         mockMvc.perform(post("/api/users")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(createUserBody(email, "Jane", "Doe", "CANDIDATE"))
+                        .content(createUserBody(email, "Jane", "Doe"))
                         .with(user("api-test"))
                         .with(csrf()))
                 .andExpect(status().isCreated())
@@ -97,7 +106,7 @@ class UserApiIntegrationTest {
 
         MvcResult result = mockMvc.perform(post("/api/users")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(createUserBody(email, "Jane", "Doe", "CANDIDATE"))
+                        .content(createUserBody(email, "Jane", "Doe"))
                         .with(user("api-test"))
                         .with(csrf()))
                 .andExpect(status().isCreated())
@@ -112,7 +121,7 @@ class UserApiIntegrationTest {
     void returnsJsonContentTypeOnGetUser() throws Exception {
         User user = seedUser("content-type-" + UUID.randomUUID() + "@example.com", UserRole.CANDIDATE);
 
-        mockMvc.perform(get("/api/users/{id}", user.getId()).with(user("api-test")))
+        mockMvc.perform(get("/api/users/{id}", user.getId()).with(ownerOf(user)))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
     }
@@ -146,7 +155,7 @@ class UserApiIntegrationTest {
     @Test
     void returnsBadRequestForMalformedUserIdOnDelete() throws Exception {
         mockMvc.perform(delete("/api/users/{id}", "not-a-uuid")
-                        .with(user("api-test"))
+                        .with(admin())
                         .with(csrf()))
                 .andExpect(status().isBadRequest());
     }
@@ -158,7 +167,7 @@ class UserApiIntegrationTest {
 
         mockMvc.perform(post("/api/users")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(createUserBody(email, "Other", "User", "RECRUITER"))
+                        .content(createUserBody(email, "Other", "User"))
                         .with(user("api-test"))
                         .with(csrf()))
                 .andExpect(status().isConflict());
@@ -167,16 +176,14 @@ class UserApiIntegrationTest {
     @Test
     void rejectsInvalidCreatePayloads() throws Exception {
         List<String> invalidPayloads = List.of(
-                "{\"firstName\":\"Jane\",\"lastName\":\"Doe\",\"role\":\"CANDIDATE\"}",
-                "{\"email\":\"not-an-email\",\"firstName\":\"Jane\",\"lastName\":\"Doe\",\"role\":\"CANDIDATE\"}",
-                "{\"email\":\"invalid-1@example.com\",\"firstName\":\" \",\"lastName\":\"Doe\",\"role\":\"CANDIDATE\"}",
-                "{\"email\":\"invalid-2@example.com\",\"firstName\":\"Jane\",\"lastName\":\" \",\"role\":\"CANDIDATE\"}",
-                "{\"email\":\"invalid-3@example.com\",\"firstName\":\"Jane\",\"lastName\":\"Doe\"}",
-                "{\"email\":\"invalid-4@example.com\",\"firstName\":\"Jane\",\"lastName\":\"Doe\",\"role\":\"SUPER_ADMIN\"}",
+                "{\"firstName\":\"Jane\",\"lastName\":\"Doe\"}",
+                "{\"email\":\"not-an-email\",\"firstName\":\"Jane\",\"lastName\":\"Doe\",\"password\":\"Sup3r-Secret!\"}",
+                "{\"email\":\"invalid-1@example.com\",\"firstName\":\" \",\"lastName\":\"Doe\",\"password\":\"Sup3r-Secret!\"}",
+                "{\"email\":\"invalid-2@example.com\",\"firstName\":\"Jane\",\"lastName\":\" \",\"password\":\"Sup3r-Secret!\"}",
                 // Registration must carry a password of acceptable length.
-                "{\"email\":\"invalid-5@example.com\",\"firstName\":\"Jane\",\"lastName\":\"Doe\",\"role\":\"CANDIDATE\"}",
-                "{\"email\":\"invalid-6@example.com\",\"firstName\":\"Jane\",\"lastName\":\"Doe\",\"password\":\" \",\"role\":\"CANDIDATE\"}",
-                "{\"email\":\"invalid-7@example.com\",\"firstName\":\"Jane\",\"lastName\":\"Doe\",\"password\":\"Sh0rt!\",\"role\":\"CANDIDATE\"}");
+                "{\"email\":\"invalid-3@example.com\",\"firstName\":\"Jane\",\"lastName\":\"Doe\"}",
+                "{\"email\":\"invalid-4@example.com\",\"firstName\":\"Jane\",\"lastName\":\"Doe\",\"password\":\" \"}",
+                "{\"email\":\"invalid-5@example.com\",\"firstName\":\"Jane\",\"lastName\":\"Doe\",\"password\":\"Sh0rt!\"}");
 
         for (String payload : invalidPayloads) {
             mockMvc.perform(post("/api/users")
@@ -196,7 +203,7 @@ class UserApiIntegrationTest {
 
         MvcResult result = mockMvc.perform(post("/api/users")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(createUserBody(email, "Jane", "Doe", "CANDIDATE"))
+                        .content(createUserBody(email, "Jane", "Doe"))
                         .with(user("api-test"))
                         .with(csrf()))
                 .andExpect(status().isCreated())
@@ -212,7 +219,7 @@ class UserApiIntegrationTest {
     void getUserById() throws Exception {
         User user = seedUser("get-by-id-" + UUID.randomUUID() + "@example.com", UserRole.CANDIDATE);
 
-        mockMvc.perform(get("/api/users/{id}", user.getId()).with(user("api-test")))
+        mockMvc.perform(get("/api/users/{id}", user.getId()).with(ownerOf(user)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(user.getId().toString()))
                 .andExpect(jsonPath("$.email").value(user.getEmail()))
@@ -221,7 +228,7 @@ class UserApiIntegrationTest {
 
     @Test
     void returnsNotFoundForUnknownUserId() throws Exception {
-        mockMvc.perform(get("/api/users/{id}", UUID.randomUUID()).with(user("api-test")))
+        mockMvc.perform(get("/api/users/{id}", UUID.randomUUID()).with(admin()))
                 .andExpect(status().isNotFound());
     }
 
@@ -229,7 +236,7 @@ class UserApiIntegrationTest {
     void getUserByEmail() throws Exception {
         User user = seedUser("get-by-email-" + UUID.randomUUID() + "@example.com", UserRole.RECRUITER);
 
-        mockMvc.perform(get("/api/users/email/{email}", user.getEmail()).with(user("api-test")))
+        mockMvc.perform(get("/api/users/email/{email}", user.getEmail()).with(admin()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(user.getId().toString()))
                 .andExpect(jsonPath("$.firstName").value("Jane"))
@@ -239,13 +246,15 @@ class UserApiIntegrationTest {
     @Test
     void returnsNotFoundForUnknownUserEmail() throws Exception {
         mockMvc.perform(get("/api/users/email/{email}", "missing-" + UUID.randomUUID() + "@example.com")
-                        .with(user("api-test")))
+                        .with(admin()))
                 .andExpect(status().isNotFound());
     }
 
     @Test
     void updateUserProfile() throws Exception {
         User user = seedUser("update-" + UUID.randomUUID() + "@example.com", UserRole.CANDIDATE);
+        // email, role and enabled ride along in the payload and must all be ignored: the
+        // owner of a record can edit their name, never their authority or address.
         String payload = """
                 {"firstName":"Janet","lastName":"Smith","email":"changed@example.com","role":"ADMIN","enabled":false}
                 """;
@@ -253,7 +262,7 @@ class UserApiIntegrationTest {
         mockMvc.perform(put("/api/users/{id}", user.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload)
-                        .with(user("api-test"))
+                        .with(ownerOf(user))
                         .with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.firstName").value("Janet"))
@@ -274,7 +283,7 @@ class UserApiIntegrationTest {
         mockMvc.perform(put("/api/users/{id}", user.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"firstName\":\" \",\"lastName\":\"Smith\"}")
-                        .with(user("api-test"))
+                        .with(ownerOf(user))
                         .with(csrf()))
                 .andExpect(status().isBadRequest());
     }
@@ -284,7 +293,7 @@ class UserApiIntegrationTest {
         mockMvc.perform(put("/api/users/{id}", UUID.randomUUID())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"firstName\":\"Janet\",\"lastName\":\"Smith\"}")
-                        .with(user("api-test"))
+                        .with(admin())
                         .with(csrf()))
                 .andExpect(status().isNotFound());
     }
@@ -294,20 +303,20 @@ class UserApiIntegrationTest {
         User user = seedUser("delete-" + UUID.randomUUID() + "@example.com", UserRole.CANDIDATE);
 
         mockMvc.perform(delete("/api/users/{id}", user.getId())
-                        .with(user("api-test"))
+                        .with(admin())
                         .with(csrf()))
                 .andExpect(status().isNoContent());
 
         assertThat(userRepository.findById(user.getId())).isEmpty();
 
-        mockMvc.perform(get("/api/users/{id}", user.getId()).with(user("api-test")))
+        mockMvc.perform(get("/api/users/{id}", user.getId()).with(admin()))
                 .andExpect(status().isNotFound());
     }
 
     @Test
     void returnsNotFoundWhenDeletingUnknownUser() throws Exception {
         mockMvc.perform(delete("/api/users/{id}", UUID.randomUUID())
-                        .with(user("api-test"))
+                        .with(admin())
                         .with(csrf()))
                 .andExpect(status().isNotFound());
     }
@@ -321,9 +330,23 @@ class UserApiIntegrationTest {
         return userRepository.saveAndFlush(user);
     }
 
-    private String createUserBody(String email, String firstName, String lastName, String role) {
+    /** An authenticated caller with the administrator authority. */
+    private RequestPostProcessor admin() {
+        return user("admin-test").roles("ADMIN");
+    }
+
+    /**
+     * The authenticated principal of the record's owner. The bearer filter authenticates
+     * with the user-id string as principal, and this post-processor reproduces exactly
+     * that shape, so ownership expressions see the same value they see in production.
+     */
+    private RequestPostProcessor ownerOf(User owner) {
+        return user(owner.getId().toString());
+    }
+
+    private String createUserBody(String email, String firstName, String lastName) {
         return """
-                {"email":"%s","firstName":"%s","lastName":"%s","password":"Sup3r-Secret!","role":"%s"}
-                """.formatted(email, firstName, lastName, role);
+                {"email":"%s","firstName":"%s","lastName":"%s","password":"Sup3r-Secret!"}
+                """.formatted(email, firstName, lastName);
     }
 }

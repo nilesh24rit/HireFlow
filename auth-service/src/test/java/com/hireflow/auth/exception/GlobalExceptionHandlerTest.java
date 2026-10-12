@@ -27,6 +27,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -143,7 +144,7 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.path").value("/api/users"))
                 .andExpect(jsonPath("$.fieldErrors.email").value("email must not be blank"))
                 .andExpect(jsonPath("$.fieldErrors.lastName").value("lastName must not be blank"))
-                .andExpect(jsonPath("$.fieldErrors.role").value("role must not be null"));
+                .andExpect(jsonPath("$.fieldErrors.password").value("password must not be blank"));
     }
 
     @Test
@@ -157,14 +158,18 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void returnsBadRequestForUnknownRoleValue() throws Exception {
-        mockMvc.perform(post("/api/users")
+        // The create payload accepts no role at all (an unknown key there would simply be
+        // dropped), so the unknown-enum contract belongs to the one payload that does
+        // carry a role: the dedicated ADMIN-only role assignment.
+        UUID id = UUID.randomUUID();
+
+        mockMvc.perform(put("/api/users/{id}/role", id)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"jane@example.com\",\"firstName\":\"Jane\","
-                                + "\"lastName\":\"Doe\",\"role\":\"SUPER_ADMIN\"}"))
+                        .content("{\"role\":\"SUPER_ADMIN\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
                 .andExpect(jsonPath("$.message").value("Unknown UserRole value 'SUPER_ADMIN'"))
-                .andExpect(jsonPath("$.path").value("/api/users"));
+                .andExpect(jsonPath("$.path").value("/api/users/" + id + "/role"));
     }
 
     @Test
@@ -258,7 +263,7 @@ class GlobalExceptionHandlerTest {
 
     private String createUserBody() {
         return "{\"email\":\"jane@example.com\",\"firstName\":\"Jane\","
-                + "\"lastName\":\"Doe\",\"password\":\"Sup3r-Secret!\",\"role\":\"CANDIDATE\"}";
+                + "\"lastName\":\"Doe\",\"password\":\"Sup3r-Secret!\"}";
     }
 
     @Test

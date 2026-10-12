@@ -48,7 +48,9 @@ import com.hireflow.auth.security.TestSigningKeys;
  *       test below is executed through that chain;</li>
  *   <li>endpoint behaviour is preserved: requests carrying a valid bearer token pass,
  *       anonymous requests are rejected with the deliberate 401 error contract and the
- *       Bearer challenge;</li>
+ *       Bearer challenge; the Step 15 ownership rule layers on top of that — a valid
+ *       token reads its own record while a foreign one is refused with the 403 contract,
+ *       and 401 is never used for an authorization failure;</li>
  *   <li>an invalid bearer token is rejected with the {@code invalid_token} challenge and
  *       can never be treated as anonymous success on a protected route;</li>
  *   <li>the CSRF policy holds: an authenticated POST with deliberately no CSRF token is
@@ -147,9 +149,25 @@ class SecurityConfigurationTest {
     void getWithAuthenticatedUserIsAccepted() throws Exception {
         User user = seedUser();
 
-        mockMvc.perform(get("/api/users/{id}", user.getId()).with(user("security-test")))
+        // The authenticated principal is the user id (exactly what the bearer filter
+        // produces), so the owner of the record passes the ownership rule.
+        mockMvc.perform(get("/api/users/{id}", user.getId()).with(user(user.getId().toString())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value(user.getEmail()));
+    }
+
+    @Test
+    void getByAnotherAuthenticatedUserIsRejectedWith403Contract() throws Exception {
+        User user = seedUser();
+
+        // Authentication succeeds, authorization fails: 403 FORBIDDEN in the common error
+        // contract — never 401, which stays reserved for missing or invalid credentials.
+        mockMvc.perform(get("/api/users/{id}", user.getId()).with(user("someone-else")))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"))
+                .andExpect(jsonPath("$.message").value("Access denied"))
+                .andExpect(jsonPath("$.path").value("/api/users/" + user.getId()));
     }
 
     @Test
@@ -193,8 +211,9 @@ class SecurityConfigurationTest {
     }
 
     private String createUserBody() {
+        // No role field: whatever is sent would be dropped, and the account is born a CANDIDATE.
         return """
-                {"email":"security-config-create-%s@example.com","firstName":"Security","lastName":"Create","password":"Sup3r-Secret!","role":"CANDIDATE"}
+                {"email":"security-config-create-%s@example.com","firstName":"Security","lastName":"Create","password":"Sup3r-Secret!"}
                 """.formatted(UUID.randomUUID());
     }
 }
