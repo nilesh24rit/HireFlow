@@ -18,14 +18,23 @@ import com.nimbusds.jwt.SignedJWT;
 /**
  * Validation of HireFlow access tokens.
  *
- * <p>Candidate-service does not issue tokens — auth-service does — but it verifies them
+ * <p>Application-service does not issue tokens — auth-service does — but it verifies them
  * itself, so identity is never taken on trust from a header or from the gateway. This is
  * the same validation as auth-service's {@code JwtService}, validate-only: the algorithm
  * must be exactly HS256 (so {@code alg=none} or a substituted algorithm is rejected), the
  * HMAC signature must verify against the shared signing key, the token must not be
- * expired, the issuer must match, and the subject must be a valid user id. Malformed,
- * expired, tampered or wrongly issued tokens are rejected with
- * {@link InvalidTokenException}; reasons stay server-side.</p>
+ * expired, the issuer must match, the subject must be a valid user id, and the {@code role}
+ * claim must name a role HireFlow actually has. Malformed, expired, tampered, role-less or
+ * wrongly issued tokens are rejected with {@link InvalidTokenException}; reasons stay
+ * server-side.</p>
+ *
+ * <p><b>The role claim is required, and it is trusted.</b> Every token auth-service has ever
+ * issued carries the server-derived {@code role} claim, so requiring it breaks no legitimate
+ * client — and it means the authority granted here always comes from the persisted user
+ * record rather than from a token an attacker shaped. A role change or an account disabling
+ * takes effect for new tokens immediately and for already-issued tokens at their expiry, at
+ * most {@code hireflow.jwt.token-ttl-seconds} later; this service never re-reads the user
+ * database, so the token lifetime is the invalidation window.</p>
  *
  * <p>The signing key comes exclusively from the {@code hireflow.jwt.signing-key} property
  * (for example the {@code HIREFLOW_JWT_SIGNINGKEY} environment variable) shared with
@@ -41,6 +50,9 @@ public class JwtService {
     /** HS256 keys shorter than 256 bits are rejected by the JOSE layer and by policy. */
     static final int MINIMUM_KEY_BYTES = 32;
 
+    /** Name of the claim carrying the user's persisted role. */
+    static final String ROLE_CLAIM = "role";
+
     private final byte[] signingKey;
     private final String issuer;
 
@@ -52,14 +64,14 @@ public class JwtService {
     }
 
     /**
-     * Validates a bearer token and returns the authenticated user's id.
+     * Validates a bearer token and returns the identity it authenticates.
      *
      * @param token the raw token value taken from the {@code Authorization} header
-     * @return the stable user id carried in the subject claim
+     * @return the user id and role carried by the verified token
      * @throws InvalidTokenException when the token is malformed, tampered with, expired,
      *                               wrongly issued or missing required claims
      */
-    public UUID validateAccessToken(String token) {
+    public AuthenticatedUser authenticate(String token) {
         if (token == null || token.isBlank()) {
             throw new InvalidTokenException(InvalidTokenException.Reason.MALFORMED,
                     "token is empty");
@@ -114,12 +126,39 @@ public class JwtService {
             throw new InvalidTokenException(InvalidTokenException.Reason.MISSING_CLAIMS,
                     "token is missing the subject claim");
         }
+        UUID userId;
         try {
-            return UUID.fromString(subject);
+            userId = UUID.fromString(subject);
         } catch (IllegalArgumentException ex) {
             throw new InvalidTokenException(InvalidTokenException.Reason.MISSING_CLAIMS,
                     "token subject is not a valid user id");
         }
+        return new AuthenticatedUser(userId, roleClaim(claims));
+    }
+
+    /**
+     * Reads the server-derived role claim of an otherwise valid token.
+     *
+     * <p>The claim is written by auth-service from the persisted user record, so a verified
+     * value is a trusted role. A token without it — or with a value this service never sees
+     * issued — cannot be given an authority, and is rejected rather than authenticated with
+     * an empty or guessed role.</p>
+     *
+     * @param claims the already signature-verified claim set
+     * @return the role the token carries
+     * @throws InvalidTokenException when the role claim is missing or unknown
+     */
+    private UserRole roleClaim(JWTClaimsSet claims) {
+        String role;
+        try {
+            role = claims.getStringClaim(ROLE_CLAIM);
+        } catch (ParseException ex) {
+            throw new InvalidTokenException(InvalidTokenException.Reason.MISSING_CLAIMS,
+                    "token role claim is not a string");
+        }
+        return UserRole.fromClaim(role).orElseThrow(() ->
+                new InvalidTokenException(InvalidTokenException.Reason.MISSING_CLAIMS,
+                        "token is missing the role claim"));
     }
 
     private static byte[] requireSigningKey(String configuredKey) {

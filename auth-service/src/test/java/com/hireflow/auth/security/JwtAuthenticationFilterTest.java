@@ -11,6 +11,7 @@ import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.hireflow.auth.entity.UserRole;
@@ -52,7 +53,7 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
-    void validTokenPopulatesSecurityContextWithStableSubject() throws Exception {
+    void validTokenPopulatesSecurityContextWithStableSubjectAndRoleAuthority() throws Exception {
         UUID userId = UUID.randomUUID();
         String token = jwtService.generateAccessToken(userId, UserRole.CANDIDATE).token();
 
@@ -63,8 +64,37 @@ class JwtAuthenticationFilterTest {
         assertThat(authentication).isNotNull();
         assertThat(authentication.isAuthenticated()).isTrue();
         assertThat(authentication.getPrincipal()).isEqualTo(userId.toString());
-        assertThat(authentication.getAuthorities()).isEmpty();
+        // The single authority is the ROLE_<role> derived from the persisted role claim.
+        assertThat(authentication.getAuthorities())
+                .extracting(GrantedAuthority::getAuthority)
+                .containsExactly("ROLE_CANDIDATE");
         assertThat(request.getAttribute(JwtAuthenticationFilter.INVALID_TOKEN_ATTRIBUTE)).isNull();
+    }
+
+    @Test
+    void recruiterTokenCarriesTheRecruiterAuthority() throws Exception {
+        UUID userId = UUID.randomUUID();
+        String token = jwtService.generateAccessToken(userId, UserRole.RECRUITER).token();
+
+        filter.doFilter(requestWithAuthorization("Bearer " + token),
+                new MockHttpServletResponse(), capturingChain());
+
+        assertThat(authenticationDuringChain.get().getAuthorities())
+                .extracting(GrantedAuthority::getAuthority)
+                .containsExactly("ROLE_RECRUITER");
+    }
+
+    @Test
+    void adminTokenCarriesTheAdminAuthority() throws Exception {
+        UUID userId = UUID.randomUUID();
+        String token = jwtService.generateAccessToken(userId, UserRole.ADMIN).token();
+
+        filter.doFilter(requestWithAuthorization("Bearer " + token),
+                new MockHttpServletResponse(), capturingChain());
+
+        assertThat(authenticationDuringChain.get().getAuthorities())
+                .extracting(GrantedAuthority::getAuthority)
+                .containsExactly("ROLE_ADMIN");
     }
 
     @Test

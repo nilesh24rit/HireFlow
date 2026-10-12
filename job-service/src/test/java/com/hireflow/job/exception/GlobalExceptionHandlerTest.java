@@ -67,6 +67,25 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void returnsForbiddenPayloadForRefusedAuthorization() throws Exception {
+        // An authorization refusal (role rule or ownership check) is a 403 — never a 401,
+        // never a 500 from the catch-all — and the message stays the fixed safe text.
+        UUID id = UUID.randomUUID();
+        when(jobService.getJobById(id))
+                .thenThrow(new org.springframework.security.access.AccessDeniedException("denied"));
+
+        mockMvc.perform(get("/api/jobs/{id}", id))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.error").value("Forbidden"))
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"))
+                .andExpect(jsonPath("$.message").value("Access denied"))
+                .andExpect(jsonPath("$.path").value("/api/jobs/" + id))
+                .andExpect(jsonPath("$.timestamp").exists());
+    }
+
+    @Test
     void stampsErrorsWithUtcTimestamp() throws Exception {
         UUID id = UUID.randomUUID();
         when(jobService.getJobById(id)).thenThrow(new ResourceNotFoundException("No job found"));

@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
 import org.springframework.web.ErrorResponseException;
@@ -56,6 +57,7 @@ public class GlobalExceptionHandler {
     private static final String MALFORMED_BODY_MESSAGE = "Request body is malformed or unreadable";
     private static final String VALIDATION_FAILED_MESSAGE = "Request validation failed";
     private static final String CONFLICT_MESSAGE = "The request conflicts with existing data";
+    private static final String ACCESS_DENIED_MESSAGE = "Access denied";
 
     /**
      * Unique constraints owned by this service, mapped to the message that is
@@ -122,6 +124,25 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleOAuth2Identity(OAuth2IdentityException ex,
             HttpServletRequest request) {
         return respond(ex.reason().status(), ex.reason().errorCode(), ex.getMessage(), request, null);
+    }
+
+    /**
+     * Maps a refused authorization decision onto {@code 403 Forbidden}.
+     *
+     * <p>Authorization failures — a role rule from {@code @PreAuthorize} such as the
+     * ADMIN-only user and role management endpoints — surface as
+     * {@link AccessDeniedException} (its subclass {@code AuthorizationDeniedException}
+     * included). The request <i>was</i> authenticated, so this must never be a 401, and
+     * the message stays the fixed "Access denied": the caller is not told which rule
+     * matched or what roles exist elsewhere. The stack trace and expression details are
+     * logged server side only.</p>
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiErrorResponse> handleAccessDenied(AccessDeniedException ex,
+            HttpServletRequest request) {
+        log.debug("Authorization refused for {} {}: {}", request.getMethod(), request.getRequestURI(),
+                ex.getMessage());
+        return respond(HttpStatus.FORBIDDEN, ErrorCode.FORBIDDEN, ACCESS_DENIED_MESSAGE, request, null);
     }
 
     // ------------------------------------------------------------------

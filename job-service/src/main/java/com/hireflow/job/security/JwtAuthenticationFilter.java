@@ -1,8 +1,5 @@
 package com.hireflow.job.security;
 
-import java.util.List;
-import java.util.UUID;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -30,8 +27,10 @@ import jakarta.servlet.http.HttpServletResponse;
  *   <li>the token is validated by {@link JwtService} — signature, algorithm, expiry,
  *       issuer and required claims;</li>
  *   <li>only after successful validation is the Spring Security context populated, with
- *       the token's subject (the stable user id) as the principal. No role or identity is
- *       ever taken from unverified input: the validated token is the sole source;</li>
+ *       the token's subject (the stable user id) as the principal and a single
+ *       {@code ROLE_<role>} authority derived from the server-written role claim. No role or
+ *       identity is ever taken from unverified input: the validated token is the sole
+ *       source;</li>
  *   <li>on any validation failure the request continues <i>without</i> authentication and
  *       a request attribute marks the bad token, so the entry point can answer 401 with a
  *       precise {@code invalid_token} challenge while the client-visible body stays
@@ -86,9 +85,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
         try {
-            UUID userId = jwtService.validateAccessToken(token);
+            AuthenticatedUser user = jwtService.authenticate(token);
+            // The principal stays the stable user id (a String), and the only authority is
+            // the ROLE_<role> derived from the role auth-service persisted when the token
+            // was issued. No authority is ever taken from unverified input.
             UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(userId.toString(), null, List.of());
+                    new UsernamePasswordAuthenticationToken(user.userId().toString(), null,
+                            user.authorities());
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authentication);
         } catch (InvalidTokenException ex) {

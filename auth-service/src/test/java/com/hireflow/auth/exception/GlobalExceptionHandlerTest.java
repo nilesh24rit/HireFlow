@@ -72,6 +72,26 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void returnsForbiddenPayloadForRefusedAuthorization() throws Exception {
+        // An authorization refusal (for example the ADMIN-only user management rule) is a
+        // 403 — never a 401, never a 500 from the catch-all — and the message stays the
+        // fixed safe text.
+        UUID id = UUID.randomUUID();
+        when(userService.getUserById(id))
+                .thenThrow(new org.springframework.security.access.AccessDeniedException("denied"));
+
+        mockMvc.perform(get("/api/users/{id}", id))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.error").value("Forbidden"))
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"))
+                .andExpect(jsonPath("$.message").value("Access denied"))
+                .andExpect(jsonPath("$.path").value("/api/users/" + id))
+                .andExpect(jsonPath("$.timestamp").exists());
+    }
+
+    @Test
     void stampsErrorsWithUtcTimestamp() throws Exception {
         UUID id = UUID.randomUUID();
         when(userService.getUserById(id)).thenThrow(new ResourceNotFoundException("No user found"));

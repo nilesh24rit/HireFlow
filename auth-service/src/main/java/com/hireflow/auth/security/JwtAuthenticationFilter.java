@@ -1,12 +1,12 @@
 package com.hireflow.auth.security;
 
 import java.util.List;
-import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
@@ -86,9 +86,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
         try {
-            UUID userId = jwtService.validateAccessToken(token);
+            AuthenticatedUser user = jwtService.authenticate(token);
+            // The principal stays the stable user id (a String), and the only authority is
+            // the ROLE_<role> derived from the role auth-service persisted when the token
+            // was issued. No authority is ever taken from unverified input.
             UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(userId.toString(), null, List.of());
+                    new UsernamePasswordAuthenticationToken(user.userId().toString(), null,
+                            List.of(new SimpleGrantedAuthority(user.role().authority())));
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authentication);
         } catch (InvalidTokenException ex) {

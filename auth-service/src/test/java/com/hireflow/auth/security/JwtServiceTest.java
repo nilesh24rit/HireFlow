@@ -117,6 +117,65 @@ class JwtServiceTest {
     }
 
     // --------------------------------------------------
+    // The authenticated identity carries the trusted role
+    // --------------------------------------------------
+
+    @Test
+    void authenticateReturnsUserIdAndPersistedRole() {
+        UUID userId = UUID.randomUUID();
+
+        AuthenticatedUser candidate = jwtService.authenticate(
+                jwtService.generateAccessToken(userId, UserRole.CANDIDATE).token());
+        AuthenticatedUser recruiter = jwtService.authenticate(
+                jwtService.generateAccessToken(userId, UserRole.RECRUITER).token());
+        AuthenticatedUser admin = jwtService.authenticate(
+                jwtService.generateAccessToken(userId, UserRole.ADMIN).token());
+
+        assertThat(candidate).isEqualTo(new AuthenticatedUser(userId, UserRole.CANDIDATE));
+        assertThat(recruiter).isEqualTo(new AuthenticatedUser(userId, UserRole.RECRUITER));
+        assertThat(admin).isEqualTo(new AuthenticatedUser(userId, UserRole.ADMIN));
+    }
+
+    @Test
+    void rejectsTokenMissingRoleClaim() throws Exception {
+        // Signed correctly, but without the server-derived role: authorization must never
+        // run on a principal whose role is unknown, so the token is not usable at all.
+        JWTClaimsSet claims = new JWTClaimsSet.Builder()
+                .subject(UUID.randomUUID().toString())
+                .issuer(TEST_ISSUER)
+                .issueTime(new Date())
+                .expirationTime(Date.from(Instant.now().plus(TEST_TTL)))
+                .build();
+        SignedJWT roleless = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256), claims);
+        roleless.sign(new MACSigner(TestSigningKeys.VALID.getBytes(StandardCharsets.UTF_8)));
+
+        assertThatThrownBy(() -> jwtService.authenticate(roleless.serialize()))
+                .isInstanceOf(InvalidTokenException.class)
+                .satisfies(ex -> assertThat(((InvalidTokenException) ex).reason())
+                        .isEqualTo(InvalidTokenException.Reason.MISSING_CLAIMS));
+    }
+
+    @Test
+    void rejectsTokenWithUnknownRole() throws Exception {
+        // A role this service never issues — forged or from a future/foreign schema —
+        // is rejected rather than silently downgraded to some default.
+        JWTClaimsSet claims = new JWTClaimsSet.Builder()
+                .subject(UUID.randomUUID().toString())
+                .issuer(TEST_ISSUER)
+                .issueTime(new Date())
+                .expirationTime(Date.from(Instant.now().plus(TEST_TTL)))
+                .claim("role", "SUPERUSER")
+                .build();
+        SignedJWT forgedRole = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256), claims);
+        forgedRole.sign(new MACSigner(TestSigningKeys.VALID.getBytes(StandardCharsets.UTF_8)));
+
+        assertThatThrownBy(() -> jwtService.authenticate(forgedRole.serialize()))
+                .isInstanceOf(InvalidTokenException.class)
+                .satisfies(ex -> assertThat(((InvalidTokenException) ex).reason())
+                        .isEqualTo(InvalidTokenException.Reason.MISSING_CLAIMS));
+    }
+
+    // --------------------------------------------------
     // Rejections
     // --------------------------------------------------
 

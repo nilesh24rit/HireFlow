@@ -191,6 +191,9 @@ class EndpointSecurityIntegrationTest {
                 .issuer("hireflow-auth")
                 .issueTime(new Date())
                 .expirationTime(expiresAt)
+                // The server-derived role claim every auth-service token carries; a token
+                // without it is rejected by the validator as an unusable HireFlow token.
+                .claim("role", "RECRUITER")
                 .build();
         SignedJWT jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256), claims);
         jwt.sign(new MACSigner(signingKey.getBytes(StandardCharsets.UTF_8)));

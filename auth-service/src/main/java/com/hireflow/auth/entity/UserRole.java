@@ -18,5 +18,15 @@ public enum UserRole {
     RECRUITER,
 
     /** An administrator of the platform. */
-    ADMIN
+    ADMIN;
+
+    /**
+     * The Spring Security authority granted to a user holding this role, always
+     * {@code ROLE_} prefixed so that {@code hasRole(...)} expressions match it.
+     *
+     * @return the single authority of this role, for example {@code ROLE_CANDIDATE}
+     */
+    public String authority() {
+        return "ROLE_" + name();
+    }
 }

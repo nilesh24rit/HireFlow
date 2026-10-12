@@ -38,13 +38,31 @@ import com.nimbusds.jwt.SignedJWT;
  * are configurable; the lifetime default only shortens exposure and does not weaken
  * signing.</p>
  *
- * <p><b>Validation.</b> {@link #validateAccessToken(String)} checks, in order: the token
- * parses as a signed JWT, the algorithm is exactly HS256 (so {@code alg=none} or a
- * substituted asymmetric algorithm is rejected), the HMAC signature verifies against the
- * configured key, the token is not expired, the issuer matches, and the required subject
- * claim is a valid user id. Malformed, expired, tampered or otherwise untrustworthy
+ * <p><b>Validation.</b> {@link #authenticate(String)} checks, in order: the token parses as
+ * a signed JWT, the algorithm is exactly HS256 (so {@code alg=none} or a substituted
+ * asymmetric algorithm is rejected), the HMAC signature verifies against the configured key,
+ * the token is not expired, the issuer matches, the required subject claim is a valid user
+ * id, and the {@code role} claim names a known HireFlow role. A token that cannot produce a
+ * role is not a usable HireFlow token and is rejected: authorization never runs on a
+ * principal whose role is unknown. Malformed, expired, tampered or otherwise untrustworthy
  * tokens are rejected with {@link InvalidTokenException}; the exception reason and message
  * stay server-side and are never echoed to clients. Tokens are never logged.</p>
+ *
+ * <p><b>How stale roles are handled.</b> The {@code role} claim is written here from the
+ * <i>persisted</i> user record at issuance, so it is authoritative from the moment the token
+ * is minted; every later authorization decision trusts that signed claim. The consequence is
+ * deliberate and bounded:</p>
+ * <ul>
+ *   <li>a role change or an account disabling takes effect <i>immediately</i> for every new
+ *       token, because both login paths re-read the user record before signing;</li>
+ *   <li>an already-issued token keeps its embedded role only until it expires — at most
+ *       {@code hireflow.jwt.token-ttl-seconds} (one hour by default) later. This step
+ *       deliberately does not add refresh tokens, sessions or a shared revocation store, so
+ *       the token lifetime <i>is</i> the invalidation window, and it is short and
+ *       configurable;</li>
+ *   <li>a disabled account cannot obtain any new token at all: both password login and Google
+ *       sign-in refuse disabled users before a token is issued.</li>
+ * </ul>
  */
 @Component
 public class JwtService {
@@ -54,6 +72,9 @@ public class JwtService {
 
     /** HS256 keys shorter than 256 bits are rejected by the JOSE layer and by policy. */
     static final int MINIMUM_KEY_BYTES = 32;
+
+    /** Name of the claim carrying the user's persisted role. */
+    static final String ROLE_CLAIM = "role";
 
     private final byte[] signingKey;
     private final Duration tokenTtl;
@@ -89,7 +110,7 @@ public class JwtService {
                 .issuer(issuer)
                 .issueTime(Date.from(issuedAt))
                 .expirationTime(Date.from(expiresAt))
-                .claim("role", role.name())
+                .claim(ROLE_CLAIM, role.name())
                 .build();
 
         SignedJWT jwt = new SignedJWT(new JWSHeader(ALGORITHM), claims);
@@ -102,7 +123,10 @@ public class JwtService {
     }
 
     /**
-     * Validates a bearer token and returns the authenticated user's id.
+     * Validates a bearer token and returns the id it authenticates.
+     *
+     * <p>Convenience over {@link #authenticate(String)} for callers that only need the
+     * identity; the validation performed is exactly the same.</p>
      *
      * @param token the raw token value taken from the {@code Authorization} header
      * @return the stable user id carried in the subject claim
@@ -110,6 +134,18 @@ public class JwtService {
      *                               wrongly issued or missing required claims
      */
     public UUID validateAccessToken(String token) {
+        return authenticate(token).userId();
+    }
+
+    /**
+     * Validates a bearer token and returns the identity it authenticates.
+     *
+     * @param token the raw token value taken from the {@code Authorization} header
+     * @return the user id and role carried by the verified token
+     * @throws InvalidTokenException when the token is malformed, tampered with, expired,
+     *                               wrongly issued or missing required claims
+     */
+    public AuthenticatedUser authenticate(String token) {
         if (token == null || token.isBlank()) {
             throw new InvalidTokenException(InvalidTokenException.Reason.MALFORMED,
                     "token is empty");
@@ -165,11 +201,45 @@ public class JwtService {
             throw new InvalidTokenException(InvalidTokenException.Reason.MISSING_CLAIMS,
                     "token is missing the subject claim");
         }
+        UUID userId;
         try {
-            return UUID.fromString(subject);
+            userId = UUID.fromString(subject);
         } catch (IllegalArgumentException ex) {
             throw new InvalidTokenException(InvalidTokenException.Reason.MISSING_CLAIMS,
                     "token subject is not a valid user id");
+        }
+        return new AuthenticatedUser(userId, roleClaim(claims));
+    }
+
+    /**
+     * Reads the server-derived role claim.
+     *
+     * <p>The claim is written by {@link #generateAccessToken(UUID, UserRole)} from the
+     * persisted user record, so a verified value is a trusted role. A token without it — or
+     * with a value this service never issues — cannot be authorized, and is rejected rather
+     * than downgraded to a role-less principal.</p>
+     *
+     * @param claims the already signature-verified claim set
+     * @return the role the token carries
+     * @throws InvalidTokenException when the role claim is missing or unknown
+     */
+    private UserRole roleClaim(JWTClaimsSet claims) {
+        String role;
+        try {
+            role = claims.getStringClaim(ROLE_CLAIM);
+        } catch (ParseException ex) {
+            throw new InvalidTokenException(InvalidTokenException.Reason.MISSING_CLAIMS,
+                    "token role claim is not a string");
+        }
+        if (role == null || role.isBlank()) {
+            throw new InvalidTokenException(InvalidTokenException.Reason.MISSING_CLAIMS,
+                    "token is missing the role claim");
+        }
+        try {
+            return UserRole.valueOf(role);
+        } catch (IllegalArgumentException ex) {
+            throw new InvalidTokenException(InvalidTokenException.Reason.MISSING_CLAIMS,
+                    "token carries an unknown role");
         }
     }
 
