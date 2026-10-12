@@ -71,6 +71,11 @@ final class MockDownstream {
             return;
         }
 
+        if (path.contains("/security/403")) {
+            respondWithForbiddenRejection(exchange, path);
+            return;
+        }
+
         if (path.startsWith("/oauth2/authorization/")) {
             respondWithIdentityProviderRedirect(exchange, path);
             return;
@@ -132,6 +137,20 @@ final class MockDownstream {
         exchange.getResponseHeaders().set("Content-Type", "application/json");
         exchange.getResponseHeaders().set("WWW-Authenticate", challenge);
         exchange.sendResponseHeaders(401, bytes.length);
+        exchange.getResponseBody().write(bytes);
+        exchange.close();
+    }
+
+    /**
+     * Emulates the deliberate 403 of a downstream service: the common error contract
+     * with code FORBIDDEN, so that authorization refusal pass-through can be asserted.
+     */
+    private void respondWithForbiddenRejection(HttpExchange exchange, String path) throws IOException {
+        String body = "{\"timestamp\":\"2026-01-01T00:00:00Z\",\"status\":403,\"error\":\"Forbidden\","
+                + "\"code\":\"FORBIDDEN\",\"message\":\"Access denied\",\"path\":\"" + path + "\"}";
+        byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().set("Content-Type", "application/json");
+        exchange.sendResponseHeaders(403, bytes.length);
         exchange.getResponseBody().write(bytes);
         exchange.close();
     }

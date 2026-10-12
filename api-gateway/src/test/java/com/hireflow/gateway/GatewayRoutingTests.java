@@ -121,7 +121,7 @@ class GatewayRoutingTests {
 
     @Test
     void forwardsDownstreamStatusCodesUnchanged() {
-        List<Integer> codes = List.of(400, 404, 409, 500);
+        List<Integer> codes = List.of(400, 403, 404, 409, 500);
         for (int code : codes) {
             client().get().uri("/api/jobs/error/" + code).exchange()
                     .expectStatus().isEqualTo(code)
@@ -143,6 +143,20 @@ class GatewayRoutingTests {
                         .contains("\"code\":\"UNAUTHENTICATED\"")
                         .contains("\"message\":\"Authentication required\"")
                         .contains("\"path\":\"/api/users/security/401\"")
+                        .doesNotContain("gateway"));
+    }
+
+    @Test
+    void passesForbiddenResponsesThroughUntouched() {
+        // Downstream 403 Forbidden with standard error contract must reach the client as-is.
+        client().get().uri("/api/users/security/403").exchange()
+                .expectStatus().isForbidden()
+                .expectHeader().valueEquals("Content-Type", "application/json")
+                .expectBody(String.class)
+                .value(body -> assertThat(body)
+                        .contains("\"code\":\"FORBIDDEN\"")
+                        .contains("\"message\":\"Access denied\"")
+                        .contains("\"path\":\"/api/users/security/403\"")
                         .doesNotContain("gateway"));
     }
 
