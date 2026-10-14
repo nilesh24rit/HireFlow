@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.hireflow.job.dto.CreateJobRequest;
 import com.hireflow.job.dto.JobResponse;
 import com.hireflow.job.dto.UpdateJobRequest;
+import com.hireflow.job.cache.JobCache;
 import com.hireflow.job.entity.Job;
 import com.hireflow.job.entity.JobSkill;
 import com.hireflow.job.entity.JobStatus;
@@ -50,10 +51,17 @@ public class JobService {
 
     private final JobRepository jobRepository;
     private final JobSkillRepository jobSkillRepository;
+    private final JobCache jobCache;
 
     public JobService(JobRepository jobRepository, JobSkillRepository jobSkillRepository) {
+        this(jobRepository, jobSkillRepository, JobCache.disabled());
+    }
+
+    public JobService(JobRepository jobRepository, JobSkillRepository jobSkillRepository,
+            JobCache jobCache) {
         this.jobRepository = jobRepository;
         this.jobSkillRepository = jobSkillRepository;
+        this.jobCache = jobCache;
     }
 
     /**
@@ -107,7 +115,13 @@ public class JobService {
 
     @Transactional(readOnly = true)
     public JobResponse getJobById(UUID id) {
-        return toResponse(findJob(id));
+        JobResponse cached = jobCache.getById(id);
+        if (cached != null) {
+            return cached;
+        }
+        JobResponse response = toResponse(findJob(id));
+        jobCache.cacheAfterCommit(response);
+        return response;
     }
 
     @Transactional(readOnly = true)
