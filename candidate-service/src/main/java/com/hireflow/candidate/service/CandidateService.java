@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.hireflow.candidate.dto.CandidateResponse;
 import com.hireflow.candidate.dto.CreateCandidateRequest;
 import com.hireflow.candidate.dto.UpdateCandidateRequest;
+import com.hireflow.candidate.cache.CandidateCache;
 import com.hireflow.candidate.entity.Candidate;
 import com.hireflow.candidate.entity.CandidateSkill;
 import com.hireflow.candidate.exception.DuplicateResourceException;
@@ -54,11 +55,18 @@ public class CandidateService {
 
     private final CandidateRepository candidateRepository;
     private final CandidateSkillRepository candidateSkillRepository;
+    private final CandidateCache candidateCache;
 
     public CandidateService(CandidateRepository candidateRepository,
             CandidateSkillRepository candidateSkillRepository) {
+        this(candidateRepository, candidateSkillRepository, CandidateCache.disabled());
+    }
+
+    public CandidateService(CandidateRepository candidateRepository,
+            CandidateSkillRepository candidateSkillRepository, CandidateCache candidateCache) {
         this.candidateRepository = candidateRepository;
         this.candidateSkillRepository = candidateSkillRepository;
+        this.candidateCache = candidateCache;
     }
 
     /**
@@ -120,7 +128,13 @@ public class CandidateService {
      */
     @Transactional(readOnly = true)
     public CandidateResponse getCandidateById(UUID id) {
-        return toResponse(findCandidate(id));
+        CandidateResponse cached = candidateCache.getById(id);
+        if (cached != null) {
+            return cached;
+        }
+        CandidateResponse response = toResponse(findCandidate(id));
+        candidateCache.cacheAfterCommit(response);
+        return response;
     }
 
     /**
@@ -136,10 +150,16 @@ public class CandidateService {
     @Transactional(readOnly = true)
     @PreAuthorize("hasAnyRole('RECRUITER','ADMIN') or #userId.toString() == authentication.name")
     public CandidateResponse getCandidateByUserId(UUID userId) {
+        CandidateResponse cached = candidateCache.getByUserId(userId);
+        if (cached != null) {
+            return cached;
+        }
         Candidate candidate = candidateRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "No candidate found with user id '" + userId + "'"));
-        return toResponse(candidate);
+        CandidateResponse response = toResponse(candidate);
+        candidateCache.cacheAfterCommit(response);
+        return response;
     }
 
     /**
