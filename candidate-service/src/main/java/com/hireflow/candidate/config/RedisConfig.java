@@ -19,7 +19,7 @@ import org.springframework.util.StringUtils;
 
 @Configuration
 @EnableCaching
-@EnableConfigurationProperties(RedisProperties.class)
+@EnableConfigurationProperties({RedisProperties.class, CachePolicyProperties.class})
 public class RedisConfig {
 
     @Bean
@@ -37,10 +37,12 @@ public class RedisConfig {
             redisConfiguration.setPassword(RedisPassword.of(properties.getPassword()));
         }
 
-        LettuceClientConfiguration clientConfiguration = LettuceClientConfiguration.builder()
-                .commandTimeout(properties.getTimeout())
-                .useSsl(properties.isSsl())
-                .build();
+        LettuceClientConfiguration.LettuceClientConfigurationBuilder clientBuilder =
+            LettuceClientConfiguration.builder().commandTimeout(properties.getTimeout());
+        if (properties.isSsl()) {
+            clientBuilder.useSsl();
+        }
+        LettuceClientConfiguration clientConfiguration = clientBuilder.build();
 
         return new LettuceConnectionFactory(redisConfiguration, clientConfiguration);
     }
