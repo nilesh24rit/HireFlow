@@ -110,7 +110,9 @@ public class JobService {
 
         Job saved = jobRepository.saveAndFlush(job);
         saveSkills(saved.getId(), request.skills());
-        return toResponse(saved);
+        JobResponse response = toResponse(saved);
+        jobCache.cacheAfterCommit(response);
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -199,7 +201,9 @@ public class JobService {
         if (request.skills() != null) {
             replaceSkills(job.getId(), request.skills());
         }
-        return toResponse(jobRepository.saveAndFlush(job));
+        JobResponse response = toResponse(jobRepository.saveAndFlush(job));
+        jobCache.cacheAfterCommit(response);
+        return response;
     }
 
     /**
@@ -216,6 +220,7 @@ public class JobService {
         enforceJobOwnership(job);
         jobSkillRepository.deleteByJobId(id);
         jobRepository.delete(job);
+        jobCache.evictAfterCommit(id);
     }
 
     /**
@@ -234,6 +239,7 @@ public class JobService {
         }
         jobSkillRepository.deleteByJobId(id);
         jobRepository.delete(job);
+        jobCache.evictAfterCommit(id);
     }
 
     private UUID resolveRecruiterId(UUID requestedRecruiterId) {
