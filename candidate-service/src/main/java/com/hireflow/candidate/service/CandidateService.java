@@ -117,7 +117,9 @@ public class CandidateService {
 
         Candidate saved = candidateRepository.saveAndFlush(candidate);
         saveSkills(saved.getId(), request.skills());
-        return toResponse(saved);
+        CandidateResponse response = toResponse(saved);
+        candidateCache.cacheAfterCommit(response);
+        return response;
     }
 
     /**
@@ -232,7 +234,9 @@ public class CandidateService {
         if (request.skills() != null) {
             replaceSkills(candidate.getId(), request.skills());
         }
-        return toResponse(candidateRepository.saveAndFlush(candidate));
+        CandidateResponse response = toResponse(candidateRepository.saveAndFlush(candidate));
+        candidateCache.cacheAfterCommit(response);
+        return response;
     }
 
     /**
@@ -244,8 +248,10 @@ public class CandidateService {
     @PreAuthorize("hasRole('ADMIN')")
     public void deleteCandidate(UUID id) {
         Candidate candidate = findCandidate(id);
+        UUID userId = candidate.getUserId();
         candidateSkillRepository.deleteByCandidateId(id);
         candidateRepository.delete(candidate);
+        candidateCache.evictAfterCommit(id, userId);
     }
 
     private UUID resolveCandidateOwnerId(UUID requestedUserId) {
