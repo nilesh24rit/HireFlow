@@ -1,10 +1,15 @@
 package com.hireflow.job;
 
 import com.hireflow.job.security.TestSigningKeys;
+import com.hireflow.job.cache.JobCache;
+import com.hireflow.job.dto.JobResponse;
+import com.hireflow.job.entity.EmploymentType;
+import com.hireflow.job.entity.JobStatus;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.health.actuate.endpoint.HealthDescriptor;
+import org.springframework.boot.health.actuate.endpoint.HealthEndpoint;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.SerializationException;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -18,6 +23,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.time.Instant;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -45,7 +53,10 @@ class RedisInfrastructureIntegrationTest {
     private RedisTemplate<String, Object> redisTemplate;
 
     @Autowired
-    private TestRestTemplate restTemplate;
+    private JobCache jobCache;
+
+    @Autowired
+    private HealthEndpoint healthEndpoint;
 
     @Test
     void redisConnectionAndJsonRoundTripWork() {
@@ -59,7 +70,7 @@ class RedisInfrastructureIntegrationTest {
 
         Object actual = redisTemplate.opsForValue().get(key);
         assertThat(actual).isInstanceOf(Map.class);
-        assertThat((Map<?, ?>) actual).containsEntry("status", "OPEN");
+        assertThat(((Map<?, ?>) actual).get("status")).isEqualTo("OPEN");
     }
 
     @Test
@@ -75,7 +86,26 @@ class RedisInfrastructureIntegrationTest {
 
     @Test
     void actuatorReportsRedisHealth() {
-        String response = restTemplate.getForObject("/actuator/health", String.class);
-        assertThat(response).contains("UP");
+        HealthDescriptor health = healthEndpoint.health();
+        assertThat(health.getStatus().getCode()).isEqualTo("UP");
+    }
+
+    @Test
+    void jobCacheRoundTripUsesStableKeyAndTtl() {
+        UUID jobId = UUID.randomUUID();
+        JobResponse response = new JobResponse(
+                jobId, UUID.randomUUID(), "Engineer", "Description", "Remote",
+                EmploymentType.FULL_TIME, 3, 6, 60000, 90000, JobStatus.OPEN,
+                List.of("Java"), Instant.now(), Instant.now());
+
+        jobCache.cacheAfterCommit(response);
+
+        String key = "hireflow:job:details:" + jobId;
+        assertThat(redisTemplate.hasKey(key)).isTrue();
+        assertThat(jobCache.getById(jobId))
+                .usingRecursiveComparison()
+                .isEqualTo(response);
+        assertThat(redisTemplate.getExpire(key, TimeUnit.SECONDS))
+                .isBetween(1L, 600L);
     }
 }

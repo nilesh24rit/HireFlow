@@ -1,10 +1,13 @@
 package com.hireflow.candidate;
 
 import com.hireflow.candidate.security.TestSigningKeys;
+import com.hireflow.candidate.cache.CandidateCache;
+import com.hireflow.candidate.dto.CandidateResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.health.actuate.endpoint.HealthDescriptor;
+import org.springframework.boot.health.actuate.endpoint.HealthEndpoint;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.SerializationException;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -18,6 +21,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.time.Instant;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -45,7 +51,10 @@ class RedisInfrastructureIntegrationTest {
     private RedisTemplate<String, Object> redisTemplate;
 
     @Autowired
-    private TestRestTemplate restTemplate;
+    private CandidateCache candidateCache;
+
+    @Autowired
+    private HealthEndpoint healthEndpoint;
 
     @Test
     void redisConnectionAndJsonRoundTripWork() {
@@ -59,7 +68,7 @@ class RedisInfrastructureIntegrationTest {
 
         Object actual = redisTemplate.opsForValue().get(key);
         assertThat(actual).isInstanceOf(Map.class);
-        assertThat((Map<?, ?>) actual).containsEntry("status", "ACTIVE");
+        assertThat(((Map<?, ?>) actual).get("status")).isEqualTo("ACTIVE");
     }
 
     @Test
@@ -75,7 +84,26 @@ class RedisInfrastructureIntegrationTest {
 
     @Test
     void actuatorReportsRedisHealth() {
-        String response = restTemplate.getForObject("/actuator/health", String.class);
-        assertThat(response).contains("UP");
+        HealthDescriptor health = healthEndpoint.health();
+        assertThat(health.getStatus().getCode()).isEqualTo("UP");
+    }
+
+    @Test
+    void candidateCacheRoundTripUsesStableKeyAndTtl() {
+        UUID candidateId = UUID.randomUUID();
+        CandidateResponse response = new CandidateResponse(
+                candidateId, UUID.randomUUID(), "Engineer", "Summary", "Berlin", 5,
+                "Acme", "Developer", null, null, null, List.of("Java"),
+                Instant.now(), Instant.now());
+
+        candidateCache.cacheAfterCommit(response);
+
+        String key = "hireflow:candidate:profile:" + candidateId;
+        assertThat(redisTemplate.hasKey(key)).isTrue();
+        assertThat(candidateCache.getById(candidateId))
+                .usingRecursiveComparison()
+                .isEqualTo(response);
+        assertThat(redisTemplate.getExpire(key, TimeUnit.SECONDS))
+                .isBetween(1L, 900L);
     }
 }
