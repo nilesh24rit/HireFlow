@@ -13,7 +13,7 @@
     <properties>
         <maven.compiler.release>25</maven.compiler.release>
         <protobuf.version>4.33.0</protobuf.version>
-        <grpc.version>1.76.0</grpc.version>
+        <grpc.version>1.83.1</grpc.version>
         <os-maven-plugin.version>1.7.1</os-maven-plugin.version>
         <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
         <maven-compiler-plugin.version>3.15.0</maven-compiler-plugin.version>
