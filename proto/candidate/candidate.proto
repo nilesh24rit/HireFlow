@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package hireflow.candidate.v1;
+
+option java_multiple_files = true;
+option java_package = "com.hireflow.grpc.candidate.v1";
+
+service CandidateGrpcService {
+  rpc GetCandidateById (GetCandidateRequest) returns (CandidateResponse);
+}
+
+message GetCandidateRequest {
+  string candidate_id = 1;
+}
+
+message CandidateResponse {
+  string candidate_id = 1;
+  string user_id = 2;
+}
