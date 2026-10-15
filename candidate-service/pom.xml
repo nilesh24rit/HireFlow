@@ -22,7 +22,7 @@
         <maven-enforcer-plugin.version>3.6.3</maven-enforcer-plugin.version>
         <springdoc.version>3.1.1</springdoc.version>
         <grpc.contracts.version>0.0.1-SNAPSHOT</grpc.contracts.version>
-        <grpc.version>1.76.0</grpc.version>
+        <grpc.version>1.83.1</grpc.version>
         <testcontainers.version>2.0.5</testcontainers.version>
     </properties>
 
