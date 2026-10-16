@@ -13,7 +13,9 @@ public class CandidateGrpcConfiguration {
             @Value("${hireflow.grpc.candidate.port:9092}") int port,
             @Value("${hireflow.grpc.candidate.tls.enabled:false}") boolean tlsEnabled,
             @Value("${hireflow.grpc.candidate.tls.certificate:}") String certificatePath,
-            @Value("${hireflow.grpc.candidate.tls.private-key:}") String privateKeyPath) {
-        return new CandidateGrpcServer(port, endpoint, tlsEnabled, certificatePath, privateKeyPath);
+            @Value("${hireflow.grpc.candidate.tls.private-key:}") String privateKeyPath,
+            @Value("${hireflow.grpc.internal-token:}") String internalToken) {
+        return new CandidateGrpcServer(port, endpoint, tlsEnabled, certificatePath, privateKeyPath,
+                new InternalGrpcAuthenticationInterceptor(internalToken));
     }
 }
