@@ -6,14 +6,18 @@ option java_multiple_files = true;
 option java_package = "com.hireflow.grpc.candidate.v1";
 
 service CandidateGrpcService {
+  // Returns only the stable identifiers needed for cross-service validation.
   rpc GetCandidateById (GetCandidateRequest) returns (CandidateResponse);
 }
 
 message GetCandidateRequest {
+  // UUID string representation of the candidate profile.
   string candidate_id = 1;
 }
 
 message CandidateResponse {
+  // UUID string representation of the candidate profile.
   string candidate_id = 1;
+  // UUID string representation of the owning user.
   string user_id = 2;
 }
