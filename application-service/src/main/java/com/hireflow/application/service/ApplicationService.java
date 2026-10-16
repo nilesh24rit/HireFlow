@@ -15,6 +15,7 @@ import com.hireflow.application.dto.CreateApplicationRequest;
 import com.hireflow.application.dto.UpdateApplicationStatusRequest;
 import com.hireflow.application.entity.Application;
 import com.hireflow.application.entity.ApplicationStatus;
+import com.hireflow.application.grpc.CandidateGrpcClient;
 import com.hireflow.application.exception.DuplicateResourceException;
 import com.hireflow.application.exception.InvalidRequestException;
 import com.hireflow.application.exception.ResourceNotFoundException;
@@ -45,24 +46,35 @@ public class ApplicationService {
 
     private final ApplicationRepository applicationRepository;
     private final CrossServiceOwnershipClient ownershipClient;
+    private final CandidateGrpcClient candidateGrpcClient;
 
     public ApplicationService(ApplicationRepository applicationRepository,
-            CrossServiceOwnershipClient ownershipClient) {
+            CrossServiceOwnershipClient ownershipClient, CandidateGrpcClient candidateGrpcClient) {
         this.applicationRepository = applicationRepository;
         this.ownershipClient = ownershipClient;
+        this.candidateGrpcClient = candidateGrpcClient;
     }
 
     public ApplicationService(ApplicationRepository applicationRepository) {
-        this(applicationRepository, null);
+        this(applicationRepository, null, null);
     }
 
-    @Transactional
     @PreAuthorize("hasAnyRole('CANDIDATE','ADMIN')")
     public ApplicationResponse createApplication(CreateApplicationRequest request) {
         if (request.candidateId() == null || request.jobId() == null) {
             throw new InvalidRequestException("candidateId and jobId must not be null");
         }
-        enforceCandidateOwnership(request.candidateId());
+        if (candidateGrpcClient != null) {
+            var candidate = candidateGrpcClient.getCandidateById(request.candidateId());
+            enforceCandidateOwnership(candidate.userId());
+        } else {
+            enforceCandidateOwnership(request.candidateId());
+        }
+        return saveApplication(request);
+    }
+
+    @Transactional
+    private ApplicationResponse saveApplication(CreateApplicationRequest request) {
 
         if (applicationRepository.existsByCandidateIdAndJobId(request.candidateId(), request.jobId())) {
             throw duplicateApplication(request.candidateId(), request.jobId());
