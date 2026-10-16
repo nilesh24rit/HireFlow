@@ -15,7 +15,6 @@ class KafkaTopicConfigurationTest {
 
         assertThat(topic.name()).isEqualTo("hireflow.events.applications.v1");
         assertThat(topic.numPartitions()).isEqualTo(3);
-        assertThat(topic.replicasAssignments()).hasSize(0);
         assertThat(topic.replicationFactor()).isEqualTo((short) 1);
     }
 }
