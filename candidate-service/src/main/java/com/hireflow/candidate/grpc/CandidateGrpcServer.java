@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 import io.grpc.Server;
+import io.grpc.ServerInterceptor;
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
 
 import org.springframework.context.SmartLifecycle;
@@ -18,6 +19,7 @@ public class CandidateGrpcServer implements SmartLifecycle {
     private final boolean tlsEnabled;
     private final String certificatePath;
     private final String privateKeyPath;
+    private final ServerInterceptor authenticationInterceptor;
     private volatile Server server;
 
     public CandidateGrpcServer(
@@ -25,7 +27,8 @@ public class CandidateGrpcServer implements SmartLifecycle {
             CandidateGrpcEndpoint endpoint,
             boolean tlsEnabled,
             String certificatePath,
-            String privateKeyPath) {
+            String privateKeyPath,
+            ServerInterceptor authenticationInterceptor) {
         if (port < 0 || port > 65535) {
             throw new IllegalArgumentException("gRPC port must be between 0 and 65535");
         }
@@ -38,6 +41,7 @@ public class CandidateGrpcServer implements SmartLifecycle {
         this.tlsEnabled = tlsEnabled;
         this.certificatePath = certificatePath;
         this.privateKeyPath = privateKeyPath;
+        this.authenticationInterceptor = authenticationInterceptor;
     }
 
     @Override
@@ -46,7 +50,8 @@ public class CandidateGrpcServer implements SmartLifecycle {
             return;
         }
         try {
-            NettyServerBuilder builder = NettyServerBuilder.forPort(port).addService(endpoint);
+            NettyServerBuilder builder = NettyServerBuilder.forPort(port)
+                    .addService(io.grpc.ServerInterceptors.intercept(endpoint, authenticationInterceptor));
             if (tlsEnabled) {
                 builder.useTransportSecurity(new File(certificatePath), new File(privateKeyPath));
             }
