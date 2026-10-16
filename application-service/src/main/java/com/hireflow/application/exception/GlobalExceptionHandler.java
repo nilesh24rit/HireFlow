@@ -116,6 +116,20 @@ public class GlobalExceptionHandler {
         return respond(HttpStatus.FORBIDDEN, ErrorCode.FORBIDDEN, ACCESS_DENIED_MESSAGE, request, null);
     }
 
+    @ExceptionHandler(CandidateServiceTimeoutException.class)
+    public ResponseEntity<ApiErrorResponse> handleCandidateServiceTimeout(
+            CandidateServiceTimeoutException ex, HttpServletRequest request) {
+        log.warn("Candidate Service lookup timed out for {} {}", request.getMethod(), request.getRequestURI());
+        return respond(HttpStatus.GATEWAY_TIMEOUT, ErrorCode.INTERNAL_ERROR, ex.getMessage(), request, null);
+    }
+
+    @ExceptionHandler(CandidateServiceUnavailableException.class)
+    public ResponseEntity<ApiErrorResponse> handleCandidateServiceUnavailable(
+            CandidateServiceUnavailableException ex, HttpServletRequest request) {
+        log.warn("Candidate Service lookup unavailable for {} {}", request.getMethod(), request.getRequestURI());
+        return respond(HttpStatus.SERVICE_UNAVAILABLE, ErrorCode.INTERNAL_ERROR, ex.getMessage(), request, null);
+    }
+
     // ------------------------------------------------------------------
     // Request validation and malformed input
     // ------------------------------------------------------------------
