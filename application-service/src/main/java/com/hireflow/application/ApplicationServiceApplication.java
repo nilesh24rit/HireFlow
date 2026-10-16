@@ -4,8 +4,12 @@ import java.util.Map;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+
+import com.hireflow.application.config.KafkaInfrastructureProperties;
 
 @SpringBootApplication
+@EnableConfigurationProperties(KafkaInfrastructureProperties.class)
 public class ApplicationServiceApplication {
 
     public static void main(String[] args) {
