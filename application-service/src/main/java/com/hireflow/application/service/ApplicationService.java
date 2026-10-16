@@ -66,7 +66,7 @@ public class ApplicationService {
         }
         if (candidateGrpcClient != null) {
             var candidate = candidateGrpcClient.getCandidateById(request.candidateId());
-            enforceCandidateOwnership(candidate.userId());
+            enforceCandidateUserOwnership(candidate.userId());
         } else {
             enforceCandidateOwnership(request.candidateId());
         }
@@ -140,6 +140,7 @@ public class ApplicationService {
         if (auth == null || !auth.isAuthenticated()) {
             return;
         }
+
         if (isAdmin(auth)) {
             return;
         }
@@ -148,6 +149,17 @@ public class ApplicationService {
         }
         UUID principalId = getPrincipalId(auth);
         if (!ownershipClient.isCandidateOwner(candidateId, principalId)) {
+            throw new AccessDeniedException("You do not own this candidate profile");
+        }
+    }
+
+    private void enforceCandidateUserOwnership(UUID candidateUserId) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || isAdmin(auth)) {
+            return;
+        }
+        UUID principalId = getPrincipalId(auth);
+        if (!principalId.equals(candidateUserId)) {
             throw new AccessDeniedException("You do not own this candidate profile");
         }
     }

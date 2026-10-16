@@ -43,4 +43,10 @@ public class CandidateGrpcClientConfiguration {
         return CandidateGrpcServiceGrpc.newBlockingStub(channel)
                 .withDeadlineAfter(deadlineMilliseconds, TimeUnit.MILLISECONDS);
     }
+
+    @Bean
+    CandidateGrpcClient candidateGrpcClient(
+            CandidateGrpcServiceGrpc.CandidateGrpcServiceBlockingStub stub) {
+        return new CandidateGrpcClient(stub::getCandidateById);
+    }
 }

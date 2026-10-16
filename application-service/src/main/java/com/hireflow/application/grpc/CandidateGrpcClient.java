@@ -12,15 +12,18 @@ import com.hireflow.grpc.candidate.v1.GetCandidateRequest;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 
-import org.springframework.stereotype.Component;
-
-@Component
 public class CandidateGrpcClient {
 
-    private final CandidateGrpcServiceGrpc.CandidateGrpcServiceBlockingStub stub;
+    @FunctionalInterface
+    public interface Lookup {
+        com.hireflow.grpc.candidate.v1.CandidateResponse get(
+                com.hireflow.grpc.candidate.v1.GetCandidateRequest request);
+    }
 
-    public CandidateGrpcClient(CandidateGrpcServiceGrpc.CandidateGrpcServiceBlockingStub stub) {
-        this.stub = stub;
+    private final Lookup lookup;
+
+    public CandidateGrpcClient(Lookup lookup) {
+        this.lookup = lookup;
     }
 
     public CandidateIdentity getCandidateById(UUID candidateId) {
@@ -28,11 +31,15 @@ public class CandidateGrpcClient {
             throw new InvalidRequestException("candidateId must not be null");
         }
         try {
-            var response = stub.getCandidateById(GetCandidateRequest.newBuilder()
+            var response = lookup.get(GetCandidateRequest.newBuilder()
                     .setCandidateId(candidateId.toString())
                     .build());
-            return new CandidateIdentity(UUID.fromString(response.getCandidateId()),
-                    UUID.fromString(response.getUserId()));
+            UUID responseCandidateId = UUID.fromString(response.getCandidateId());
+            UUID userId = UUID.fromString(response.getUserId());
+            if (!candidateId.equals(responseCandidateId)) {
+                throw new CandidateServiceUnavailableException();
+            }
+            return new CandidateIdentity(responseCandidateId, userId);
         } catch (StatusRuntimeException ex) {
             Status.Code code = ex.getStatus().getCode();
             if (code == Status.Code.INVALID_ARGUMENT) {
