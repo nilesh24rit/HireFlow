@@ -5,6 +5,7 @@ import java.util.concurrent.TimeUnit;
 import com.hireflow.grpc.candidate.v1.CandidateGrpcServiceGrpc;
 
 import io.grpc.ManagedChannel;
+import io.grpc.ClientInterceptor;
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -17,17 +18,19 @@ public class CandidateGrpcClientConfiguration {
     @Bean(destroyMethod = "shutdown")
     ManagedChannel candidateGrpcChannel(
             @Value("${hireflow.grpc.candidate.target:localhost:9092}") String target,
-            @Value("${hireflow.grpc.candidate.tls.enabled:false}") boolean tlsEnabled) {
+            @Value("${hireflow.grpc.candidate.tls.enabled:false}") boolean tlsEnabled,
+            @Value("${hireflow.grpc.internal-token:}") String internalToken) {
         if (target == null || target.isBlank()) {
             throw new IllegalArgumentException("Candidate gRPC target must be configured");
         }
+        ClientInterceptor authenticationInterceptor = new InternalGrpcAuthenticationInterceptor(internalToken);
         NettyChannelBuilder builder = NettyChannelBuilder.forTarget(target);
         if (tlsEnabled) {
             builder.useTransportSecurity();
         } else {
             builder.usePlaintext();
         }
-        return builder.build();
+        return builder.intercept(authenticationInterceptor).build();
     }
 
     @Bean
