@@ -17,6 +17,8 @@ import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.util.backoff.FixedBackOff;
 
+import com.hireflow.contracts.events.ApplicationEvent;
+
 @Configuration
 public class KafkaConsumerConfiguration {
 
@@ -35,7 +37,8 @@ public class KafkaConsumerConfiguration {
                 JsonDeserializer.class);
         consumerProperties.put(JsonDeserializer.TRUSTED_PACKAGES, "java.util,com.hireflow");
         consumerProperties.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
-        consumerProperties.put(JsonDeserializer.VALUE_DEFAULT_TYPE, "java.util.LinkedHashMap");
+        consumerProperties.put(JsonDeserializer.VALUE_DEFAULT_TYPE,
+                ApplicationEvent.class.getName());
         consumerProperties.put(ConsumerConfig.GROUP_ID_CONFIG, properties.getConsumerGroup());
         consumerProperties.put(ConsumerConfig.CLIENT_ID_CONFIG, properties.getConsumerClientId());
         consumerProperties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
@@ -53,7 +56,8 @@ public class KafkaConsumerConfiguration {
 
     @Bean
     ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory(
-            ConsumerFactory<String, Object> consumerFactory, CommonErrorHandler errorHandler) {
+            ConsumerFactory<String, Object> consumerFactory,
+            CommonErrorHandler errorHandler) {
         ConcurrentKafkaListenerContainerFactory<String, Object> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory);
