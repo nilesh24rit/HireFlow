@@ -5,10 +5,19 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties("hireflow.kafka")
 public class KafkaInfrastructureProperties {
 
+    private String applicationsTopic = "hireflow.events.applications.v1";
     private String consumerGroup = "hireflow-analytics";
     private String consumerClientId = "analytics-service";
     private int maxPollRecords = 100;
     private int maxPollIntervalMs = 300000;
+
+    public String getApplicationsTopic() {
+        return applicationsTopic;
+    }
+
+    public void setApplicationsTopic(String applicationsTopic) {
+        this.applicationsTopic = applicationsTopic;
+    }
 
     public String getConsumerGroup() {
         return consumerGroup;
