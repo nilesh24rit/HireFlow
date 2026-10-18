@@ -7,6 +7,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +16,7 @@ import com.hireflow.application.dto.CreateApplicationRequest;
 import com.hireflow.application.dto.UpdateApplicationStatusRequest;
 import com.hireflow.application.entity.Application;
 import com.hireflow.application.entity.ApplicationStatus;
+import com.hireflow.application.events.ApplicationEventPublisher;
 import com.hireflow.application.grpc.CandidateGrpcClient;
 import com.hireflow.application.exception.DuplicateResourceException;
 import com.hireflow.application.exception.InvalidRequestException;
@@ -47,16 +49,29 @@ public class ApplicationService {
     private final ApplicationRepository applicationRepository;
     private final CrossServiceOwnershipClient ownershipClient;
     private final CandidateGrpcClient candidateGrpcClient;
+    private final ApplicationEventPublisher eventPublisher;
 
+    @Autowired
     public ApplicationService(ApplicationRepository applicationRepository,
-            CrossServiceOwnershipClient ownershipClient, CandidateGrpcClient candidateGrpcClient) {
+            CrossServiceOwnershipClient ownershipClient, CandidateGrpcClient candidateGrpcClient,
+            ApplicationEventPublisher eventPublisher) {
         this.applicationRepository = applicationRepository;
         this.ownershipClient = ownershipClient;
         this.candidateGrpcClient = candidateGrpcClient;
+        this.eventPublisher = eventPublisher;
     }
 
+    /**
+     * Constructor retained for unit tests that exercise persistence and authorization
+     * without starting Kafka.
+     */
     public ApplicationService(ApplicationRepository applicationRepository) {
-        this(applicationRepository, null, null);
+        this(applicationRepository, null, null, null);
+    }
+
+    public ApplicationService(ApplicationRepository applicationRepository,
+            CrossServiceOwnershipClient ownershipClient, CandidateGrpcClient candidateGrpcClient) {
+        this(applicationRepository, ownershipClient, candidateGrpcClient, null);
     }
 
     @PreAuthorize("hasAnyRole('CANDIDATE','ADMIN')")
@@ -70,7 +85,9 @@ public class ApplicationService {
         } else {
             enforceCandidateOwnership(request.candidateId());
         }
-        return saveApplication(request);
+        ApplicationResponse response = saveApplication(request);
+        publishSubmitted(response);
+        return response;
     }
 
     @Transactional
@@ -123,8 +140,11 @@ public class ApplicationService {
         }
         Application application = findApplication(id);
         enforceJobOwnership(application.getJobId());
+        ApplicationStatus previousStatus = application.getStatus();
         application.setStatus(request.status());
-        return toResponse(applicationRepository.saveAndFlush(application));
+        ApplicationResponse response = toResponse(applicationRepository.saveAndFlush(application));
+        publishStatusChanged(response, previousStatus);
+        return response;
     }
 
     @Transactional
@@ -132,7 +152,23 @@ public class ApplicationService {
     public void deleteApplication(UUID id) {
         Application application = findApplication(id);
         enforceCandidateOwnership(application.getCandidateId());
+        ApplicationResponse response = toResponse(application);
         applicationRepository.delete(application);
+        if (eventPublisher != null) {
+            eventPublisher.publishWithdrawn(response);
+        }
+    }
+
+    private void publishSubmitted(ApplicationResponse response) {
+        if (eventPublisher != null) {
+            eventPublisher.publishSubmitted(response);
+        }
+    }
+
+    private void publishStatusChanged(ApplicationResponse response, ApplicationStatus previousStatus) {
+        if (eventPublisher != null) {
+            eventPublisher.publishStatusChanged(response, previousStatus);
+        }
     }
 
     private void enforceCandidateOwnership(UUID candidateId) {
