@@ -1,6 +1,5 @@
 package com.hireflow.analytics.events;
 
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -14,15 +13,36 @@ import com.hireflow.contracts.events.ApplicationEvent;
 public class ApplicationEventHandler {
 
     private static final Logger log = LoggerFactory.getLogger(ApplicationEventHandler.class);
-    private final Set<UUID> processedEventIds = ConcurrentHashMap.newKeySet();
+    private final EventIdempotencyStore idempotencyStore;
+
+    public ApplicationEventHandler(EventIdempotencyStore idempotencyStore) {
+        this.idempotencyStore = idempotencyStore;
+    }
+
+    ApplicationEventHandler() {
+        this.idempotencyStore = new EventIdempotencyStoreForTests();
+    }
 
     public void handle(ApplicationEvent event) {
         event.validate();
-        if (!processedEventIds.add(event.eventId())) {
+        if (!idempotencyStore.recordIfNew(event.eventId())) {
             log.debug("Ignoring duplicate application event eventId={}", event.eventId());
             return;
         }
         log.info("Recorded application analytics event eventId={} type={} applicationId={}",
                 event.eventId(), event.eventType(), event.aggregateId());
+    }
+
+    private static final class EventIdempotencyStoreForTests extends EventIdempotencyStore {
+        private final java.util.Set<UUID> eventIds = ConcurrentHashMap.newKeySet();
+
+        private EventIdempotencyStoreForTests() {
+            super(null);
+        }
+
+        @Override
+        public boolean recordIfNew(UUID eventId) {
+            return eventIds.add(eventId);
+        }
     }
 }
