@@ -13,6 +13,11 @@ public class KafkaInfrastructureProperties {
     private String producerClientId = "application-service";
     private Duration deliveryTimeout = Duration.ofSeconds(120);
     private int retries = 5;
+    private int outboxBatchSize = 50;
+    private Duration outboxPollInterval = Duration.ofSeconds(1);
+    private Duration outboxRetryDelay = Duration.ofSeconds(5);
+    private Duration outboxMaxRetryDelay = Duration.ofMinutes(5);
+    private Duration outboxClaimTimeout = Duration.ofMinutes(5);
 
     public String getApplicationsTopic() {
         return applicationsTopic;
@@ -61,4 +66,15 @@ public class KafkaInfrastructureProperties {
     public void setRetries(int retries) {
         this.retries = retries;
     }
+
+    public int getOutboxBatchSize() { return outboxBatchSize; }
+    public void setOutboxBatchSize(int outboxBatchSize) { this.outboxBatchSize = outboxBatchSize; }
+    public Duration getOutboxPollInterval() { return outboxPollInterval; }
+    public void setOutboxPollInterval(Duration outboxPollInterval) { this.outboxPollInterval = outboxPollInterval; }
+    public Duration getOutboxRetryDelay() { return outboxRetryDelay; }
+    public void setOutboxRetryDelay(Duration outboxRetryDelay) { this.outboxRetryDelay = outboxRetryDelay; }
+    public Duration getOutboxMaxRetryDelay() { return outboxMaxRetryDelay; }
+    public void setOutboxMaxRetryDelay(Duration outboxMaxRetryDelay) { this.outboxMaxRetryDelay = outboxMaxRetryDelay; }
+    public Duration getOutboxClaimTimeout() { return outboxClaimTimeout; }
+    public void setOutboxClaimTimeout(Duration outboxClaimTimeout) { this.outboxClaimTimeout = outboxClaimTimeout; }
 }
