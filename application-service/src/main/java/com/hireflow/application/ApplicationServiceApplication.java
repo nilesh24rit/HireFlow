@@ -5,11 +5,13 @@ import java.util.Map;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import com.hireflow.application.config.KafkaInfrastructureProperties;
 
 @SpringBootApplication
 @EnableConfigurationProperties(KafkaInfrastructureProperties.class)
+@EnableScheduling
 public class ApplicationServiceApplication {
 
     public static void main(String[] args) {
