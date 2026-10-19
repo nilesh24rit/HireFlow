@@ -75,6 +75,7 @@ public class ApplicationService {
     }
 
     @PreAuthorize("hasAnyRole('CANDIDATE','ADMIN')")
+    @Transactional
     public ApplicationResponse createApplication(CreateApplicationRequest request) {
         if (request.candidateId() == null || request.jobId() == null) {
             throw new InvalidRequestException("candidateId and jobId must not be null");
