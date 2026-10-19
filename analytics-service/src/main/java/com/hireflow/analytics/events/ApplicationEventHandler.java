@@ -5,6 +5,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import com.hireflow.contracts.events.ApplicationEvent;
@@ -15,6 +16,7 @@ public class ApplicationEventHandler {
     private static final Logger log = LoggerFactory.getLogger(ApplicationEventHandler.class);
     private final EventIdempotencyStore idempotencyStore;
 
+    @Autowired
     public ApplicationEventHandler(EventIdempotencyStore idempotencyStore) {
         this.idempotencyStore = idempotencyStore;
     }
