@@ -18,13 +18,15 @@ public record HireFlowServiceUris(
         URI authServiceUri,
         URI candidateServiceUri,
         URI jobServiceUri,
-        URI applicationServiceUri) {
+        URI applicationServiceUri,
+        URI aiServiceUri) {
 
     public HireFlowServiceUris {
         authServiceUri = requireHttp(authServiceUri, "http://localhost:8081");
         candidateServiceUri = requireHttp(candidateServiceUri, "http://localhost:8082");
         jobServiceUri = requireHttp(jobServiceUri, "http://localhost:8083");
         applicationServiceUri = requireHttp(applicationServiceUri, "http://localhost:8084");
+        aiServiceUri = requireHttp(aiServiceUri, "http://localhost:8085");
     }
 
     private static URI requireHttp(URI uri, String fallback) {
