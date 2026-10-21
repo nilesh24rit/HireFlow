@@ -17,7 +17,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResumeProcessingException.class)
     ResponseEntity<Map<String, Object>> processingFailure(ResumeProcessingException ex) {
-        return response(HttpStatus.BAD_GATEWAY, "RESUME_PROCESSING_FAILED",
+        return response(ex.status(), ex.code(),
                 "Resume processing is temporarily unavailable");
     }
 
