@@ -2,9 +2,12 @@ package com.hireflow.ai.processing;
 
 import java.util.List;
 import java.util.UUID;
+import java.net.SocketTimeoutException;
+import java.util.concurrent.TimeoutException;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -66,8 +69,39 @@ public class ResumeProcessingService implements ResumeProcessingUseCase {
         } catch (ResumeProcessingException ex) {
             throw ex;
         } catch (RuntimeException ex) {
-            throw new ResumeProcessingException("AI provider returned an invalid response", ex);
+            throw providerFailure(ex);
         }
+    }
+
+    private ResumeProcessingException providerFailure(RuntimeException ex) {
+        if (hasCause(ex, SocketTimeoutException.class) || hasCause(ex, TimeoutException.class)) {
+            return new ResumeProcessingException(HttpStatus.GATEWAY_TIMEOUT, "AI_PROVIDER_TIMEOUT",
+                    "AI provider request timed out", ex);
+        }
+        String message = ex.getMessage() == null ? "" : ex.getMessage().toLowerCase();
+        if (message.contains("401") || message.contains("403") || message.contains("authentication")) {
+            return new ResumeProcessingException(HttpStatus.BAD_GATEWAY, "AI_PROVIDER_AUTHENTICATION_FAILED",
+                    "AI provider authentication failed", ex);
+        }
+        if (message.contains("429") || message.contains("rate limit")) {
+            return new ResumeProcessingException(HttpStatus.TOO_MANY_REQUESTS, "AI_PROVIDER_RATE_LIMITED",
+                    "AI provider rate limit reached", ex);
+        }
+        if (message.contains("503") || message.contains("unavailable") || message.contains("connection")) {
+            return new ResumeProcessingException(HttpStatus.SERVICE_UNAVAILABLE, "AI_PROVIDER_UNAVAILABLE",
+                    "AI provider is unavailable", ex);
+        }
+        return new ResumeProcessingException(HttpStatus.BAD_GATEWAY, "INVALID_AI_RESPONSE",
+                "AI provider returned an invalid structured response", ex);
+    }
+
+    private boolean hasCause(Throwable error, Class<? extends Throwable> type) {
+        for (Throwable current = error; current != null; current = current.getCause()) {
+            if (type.isInstance(current)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private ResumeProcessingResponse validate(ResumeProcessingResponse response) {
