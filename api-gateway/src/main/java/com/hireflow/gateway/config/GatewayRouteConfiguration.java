@@ -55,12 +55,14 @@ public class GatewayRouteConfiguration {
     static final String CANDIDATE_SERVICE_ROUTE_ID = "candidate-service";
     static final String JOB_SERVICE_ROUTE_ID = "job-service";
     static final String APPLICATION_SERVICE_ROUTE_ID = "application-service";
+    static final String AI_SERVICE_ROUTE_ID = "ai-service";
     static final String GOOGLE_OAUTH2_ROUTE_ID = "google-oauth2";
 
     static final String USERS_PATH = "/api/users/**";
     static final String CANDIDATES_PATH = "/api/candidates/**";
     static final String JOBS_PATH = "/api/jobs/**";
     static final String APPLICATIONS_PATH = "/api/applications/**";
+    static final String AI_PATH = "/api/ai/**";
 
     /** Browser entry point; auth-service answers with the redirect to Google. */
     static final String OAUTH2_ENTRY_POINT_PATH = "/oauth2/authorization/**";
@@ -86,6 +88,9 @@ public class GatewayRouteConfiguration {
                 .route(APPLICATION_SERVICE_ROUTE_ID, route -> route
                         .path(APPLICATIONS_PATH)
                         .uri(services.applicationServiceUri()))
+                .route(AI_SERVICE_ROUTE_ID, route -> route
+                        .path(AI_PATH)
+                        .uri(services.aiServiceUri()))
                 // The three paths Google sign-in needs, and nothing else — all landing on
                 // auth-service, which already owns identity and token issuance.
                 .route(GOOGLE_OAUTH2_ROUTE_ID, route -> route
