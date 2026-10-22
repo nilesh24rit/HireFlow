@@ -1,6 +1,5 @@
 package com.hireflow.candidate.client;
 
-import java.util.List;
 import java.util.UUID;
 
 import org.springframework.core.io.ByteArrayResource;

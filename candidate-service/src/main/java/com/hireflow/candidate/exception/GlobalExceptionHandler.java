@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.TypeMismatchException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -301,6 +302,13 @@ public class GlobalExceptionHandler {
             }
         }
         return respond(HttpStatus.CONFLICT, ErrorCode.CONFLICT, CONFLICT_MESSAGE, request, null);
+    }
+
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ResponseEntity<ApiErrorResponse> handleOptimisticLocking(OptimisticLockingFailureException ex,
+            HttpServletRequest request) {
+        return respond(HttpStatus.CONFLICT, ErrorCode.CONFLICT,
+                "The resource was changed by another request", request, null);
     }
 
     // ------------------------------------------------------------------
