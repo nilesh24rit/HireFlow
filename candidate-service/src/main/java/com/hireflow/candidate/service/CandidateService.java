@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.hireflow.candidate.dto.CandidateResponse;
 import com.hireflow.candidate.dto.CreateCandidateRequest;
 import com.hireflow.candidate.dto.UpdateCandidateRequest;
+import com.hireflow.candidate.dto.ResumeConfirmationRequest;
 import com.hireflow.candidate.cache.CandidateCache;
 import com.hireflow.candidate.entity.Candidate;
 import com.hireflow.candidate.entity.CandidateSkill;
@@ -201,6 +202,23 @@ public class CandidateService {
             throw new AccessDeniedException("You do not own this candidate profile");
         }
         return updateCandidateInternal(candidate, request);
+    }
+
+    @Transactional
+    public CandidateResponse applyResumeEnrichment(UUID id, ResumeConfirmationRequest request) {
+        Candidate candidate = findCandidate(id);
+        List<String> skills = request.skills();
+        if (skills != null) {
+            skills = new java.util.ArrayList<>(candidateSkillRepository.findByCandidateId(id).stream()
+                    .map(CandidateSkill::getSkill)
+                    .toList());
+            skills.addAll(request.skills());
+        }
+        UpdateCandidateRequest update = new UpdateCandidateRequest(
+                request.headline(), request.summary(), null, request.yearsOfExperience(),
+                request.currentCompany(), request.currentJobTitle(), null, null, null,
+                skills);
+        return updateCandidateInternal(candidate, update);
     }
 
     private CandidateResponse updateCandidateInternal(Candidate candidate, UpdateCandidateRequest request) {
