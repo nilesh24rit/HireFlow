@@ -7,6 +7,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import com.hireflow.ai.matching.client.MatchingDataUnavailableException;
+import com.hireflow.ai.matching.service.MatchingAuthorizationException;
+
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -19,6 +22,16 @@ public class GlobalExceptionHandler {
     ResponseEntity<Map<String, Object>> processingFailure(ResumeProcessingException ex) {
         return response(ex.status(), ex.code(),
                 "Resume processing is temporarily unavailable");
+    }
+
+    @ExceptionHandler(MatchingAuthorizationException.class)
+    ResponseEntity<Map<String, Object>> matchingAuthorization(MatchingAuthorizationException ex) {
+        return response(ex.status(), "MATCHING_ACCESS_DENIED", ex.getMessage());
+    }
+
+    @ExceptionHandler(MatchingDataUnavailableException.class)
+    ResponseEntity<Map<String, Object>> matchingDataFailure(MatchingDataUnavailableException ex) {
+        return response(ex.status(), ex.code(), ex.getMessage());
     }
 
     private ResponseEntity<Map<String, Object>> response(HttpStatus status, String code, String message) {

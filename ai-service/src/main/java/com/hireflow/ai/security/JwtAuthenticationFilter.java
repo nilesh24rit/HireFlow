@@ -4,6 +4,7 @@ import java.io.IOException;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -32,7 +33,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             try {
                 AuthenticatedUser user = jwtService.authenticate(header.substring(7).trim());
                 var authentication = new UsernamePasswordAuthenticationToken(
-                        user.userId().toString(), null, java.util.List.of());
+                        user, null, java.util.List.of(new SimpleGrantedAuthority("ROLE_" + user.role())));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } catch (IllegalArgumentException ex) {
                 request.setAttribute(INVALID_TOKEN_ATTRIBUTE, Boolean.TRUE);
