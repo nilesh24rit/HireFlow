@@ -12,6 +12,7 @@ public final class SkillNormalizer {
             return "";
         }
         return skill.trim().toLowerCase(Locale.ROOT)
+                .replace("-", "")
                 .replaceAll("[^a-z0-9]+", " ")
                 .trim()
                 .replaceAll("\\s+", " ");
