@@ -42,7 +42,7 @@ public class MatchingDataClient {
 
     public JobMatchProfile getJob(UUID jobId) {
         JobDto job = get(properties.jobServiceUrl() + "/api/jobs/{id}", JobDto.class, jobId);
-        return new JobMatchProfile(job.id(), job.skills(), List.of(), job.experienceMin(), job.experienceMax(),
+        return new JobMatchProfile(job.id(), job.recruiterId(), job.skills(), List.of(), job.experienceMin(), job.experienceMax(),
                 List.of(), job.description(), job.status());
     }
 
@@ -89,7 +89,7 @@ public class MatchingDataClient {
     private record CandidateDto(UUID id, UUID userId, Integer yearsOfExperience, List<String> skills) {
     }
 
-    private record JobDto(UUID id, List<String> skills, Integer experienceMin, Integer experienceMax,
+    private record JobDto(UUID id, UUID recruiterId, List<String> skills, Integer experienceMin, Integer experienceMax,
             String description, String status) {
     }
 

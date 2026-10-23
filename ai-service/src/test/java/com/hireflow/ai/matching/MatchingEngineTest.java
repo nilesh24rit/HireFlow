@@ -20,7 +20,7 @@ class MatchingEngineTest {
     void normalizesSkillsAndReportsMissingRequiredSkills() {
         var candidate = new CandidateMatchProfile(UUID.randomUUID(), List.of(" Java-Script ", "Spring Boot"),
                 4, List.of(), List.of());
-        var job = new JobMatchProfile(UUID.randomUUID(), List.of("javascript", "Java", "Spring Boot"),
+        var job = new JobMatchProfile(UUID.randomUUID(), UUID.randomUUID(), List.of("javascript", "Java", "Spring Boot"),
                 List.of(), 3, 6, List.of(), "Build APIs", "OPEN");
 
         var result = engine.calculate(candidate, job);
@@ -33,7 +33,7 @@ class MatchingEngineTest {
     @Test
     void normalizesOverOnlyEvaluableCriteria() {
         var candidate = new CandidateMatchProfile(UUID.randomUUID(), List.of("Java"), null, List.of(), List.of());
-        var job = new JobMatchProfile(UUID.randomUUID(), List.of("Java"), List.of(), 3, null,
+        var job = new JobMatchProfile(UUID.randomUUID(), UUID.randomUUID(), List.of("Java"), List.of(), 3, null,
                 List.of(), "Build APIs", "OPEN");
 
         assertThat(engine.calculate(candidate, job).score()).isEqualTo(100);
