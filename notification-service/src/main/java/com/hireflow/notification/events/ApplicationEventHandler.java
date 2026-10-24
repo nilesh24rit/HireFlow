@@ -47,11 +47,10 @@ public class ApplicationEventHandler {
 
     public void handle(ApplicationEvent event) {
         event.validate();
-        if (!idempotencyStore.recordIfNew(event.eventId())) {
-            log.debug("Ignoring duplicate application event eventId={}", event.eventId());
-            return;
-        }
         if (notificationRepository == null) {
+            if (!idempotencyStore.recordIfNew(event.eventId())) {
+                log.debug("Ignoring duplicate application event eventId={}", event.eventId());
+            }
             return;
         }
         for (NotificationType type : notificationTypes(event.eventType())) {
@@ -62,6 +61,10 @@ public class ApplicationEventHandler {
                         template.subject(), template.message(), "EMAIL", DeliveryStatus.PENDING,
                         0, java.time.Instant.now(), null, java.time.Instant.now(), null, false));
             }
+        }
+        if (!idempotencyStore.recordIfNew(event.eventId())) {
+            log.debug("Notification records already existed for duplicate event eventId={}",
+                    event.eventId());
         }
         log.info("Prepared notifications for application event eventId={} type={} applicationId={}",
                 event.eventId(), event.eventType(), event.aggregateId());

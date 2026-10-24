@@ -19,7 +19,14 @@ public record HireFlowServiceUris(
         URI candidateServiceUri,
         URI jobServiceUri,
         URI applicationServiceUri,
-        URI aiServiceUri) {
+        URI aiServiceUri,
+        URI notificationServiceUri) {
+
+    public HireFlowServiceUris(URI authServiceUri, URI candidateServiceUri, URI jobServiceUri,
+            URI applicationServiceUri, URI aiServiceUri) {
+        this(authServiceUri, candidateServiceUri, jobServiceUri, applicationServiceUri,
+                aiServiceUri, null);
+    }
 
     public HireFlowServiceUris {
         authServiceUri = requireHttp(authServiceUri, "http://localhost:8081");
@@ -27,6 +34,7 @@ public record HireFlowServiceUris(
         jobServiceUri = requireHttp(jobServiceUri, "http://localhost:8083");
         applicationServiceUri = requireHttp(applicationServiceUri, "http://localhost:8084");
         aiServiceUri = requireHttp(aiServiceUri, "http://localhost:8085");
+        notificationServiceUri = requireHttp(notificationServiceUri, "http://localhost:8086");
     }
 
     private static URI requireHttp(URI uri, String fallback) {

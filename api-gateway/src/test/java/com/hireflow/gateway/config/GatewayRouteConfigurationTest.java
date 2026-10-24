@@ -17,5 +17,7 @@ class GatewayRouteConfigurationTest {
 
         assertThat(services.aiServiceUri()).isEqualTo(URI.create("http://ai"));
         assertThat(GatewayRouteConfiguration.AI_PATH).isEqualTo("/api/ai/**");
+        assertThat(GatewayRouteConfiguration.NOTIFICATIONS_PATH)
+                .isEqualTo("/api/notifications/**");
     }
 }
