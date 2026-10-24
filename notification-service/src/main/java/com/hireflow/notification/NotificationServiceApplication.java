@@ -5,9 +5,10 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 import com.hireflow.notification.config.KafkaInfrastructureProperties;
+import com.hireflow.notification.config.MailInfrastructureProperties;
 
 @SpringBootApplication
-@EnableConfigurationProperties(KafkaInfrastructureProperties.class)
+@EnableConfigurationProperties({KafkaInfrastructureProperties.class, MailInfrastructureProperties.class})
 public class NotificationServiceApplication {
 
     public static void main(String[] args) {
