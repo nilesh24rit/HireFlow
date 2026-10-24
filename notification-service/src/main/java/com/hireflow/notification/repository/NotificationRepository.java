@@ -77,6 +77,50 @@ public class NotificationRepository {
                 id, recipientUserId);
     }
 
+    public List<Notification> findPending(int limit) {
+        return jdbcTemplate.query("""
+                select id, event_id, recipient_user_id, notification_type, subject, message, channel,
+                       delivery_status, attempt_count, created_at, sent_at, next_attempt_at, last_error, is_read
+                  from notifications
+                 where delivery_status in ('PENDING', 'FAILED')
+                   and (next_attempt_at is null or next_attempt_at <= current_timestamp)
+                 order by created_at
+                 limit ?
+                """, ROW_MAPPER, limit);
+    }
+
+    public int claim(UUID id) {
+        return jdbcTemplate.update("""
+                update notifications
+                   set delivery_status = 'PROCESSING', attempt_count = attempt_count + 1
+                 where id = ? and delivery_status in ('PENDING', 'FAILED')
+                   and (next_attempt_at is null or next_attempt_at <= current_timestamp)
+                """, id);
+    }
+
+    public int markSent(UUID id) {
+        return jdbcTemplate.update("""
+                update notifications set delivery_status = 'SENT', sent_at = current_timestamp,
+                    next_attempt_at = null, last_error = null where id = ?
+                """, id);
+    }
+
+    public int markFailed(UUID id, String error, Instant nextAttemptAt, boolean permanent) {
+        return jdbcTemplate.update("""
+                update notifications set delivery_status = ?, last_error = ?, next_attempt_at = ?
+                 where id = ?
+                """, permanent ? DeliveryStatus.FAILED.name() : DeliveryStatus.FAILED.name(),
+                error, nextAttemptAt, id);
+    }
+
+    public int recoverAbandoned(Instant cutoff) {
+        return jdbcTemplate.update("""
+                update notifications set delivery_status = 'FAILED', next_attempt_at = current_timestamp,
+                    last_error = 'Delivery worker abandoned processing'
+                 where delivery_status = 'PROCESSING' and created_at < ?
+                """, cutoff);
+    }
+
     private static Notification mapRow(ResultSet rs, int rowNum) throws SQLException {
         return new Notification(
                 rs.getObject("id", UUID.class),
