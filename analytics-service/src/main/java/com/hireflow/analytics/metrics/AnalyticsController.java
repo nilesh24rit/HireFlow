@@ -35,6 +35,16 @@ public class AnalyticsController {
         return build(period, null);
     }
 
+    @GetMapping("/admin/overview")
+    @Operation(summary = "Administrator application analytics overview")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Overview adminOverview(@RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to) {
+        return build(Period.of(from, to), null);
+    }
+
     private Overview build(Period period, UUID jobId) {
         return new Overview(repository.total(period.from(), period.to(), jobId),
                 repository.byStatus(period.from(), period.to(), jobId),
