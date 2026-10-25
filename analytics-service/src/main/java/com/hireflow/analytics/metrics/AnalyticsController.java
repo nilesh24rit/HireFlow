@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import io.swagger.v3.oas.annotations.Operation;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/analytics")
@@ -27,6 +28,7 @@ public class AnalyticsController {
 
     @GetMapping("/overview")
     @Operation(summary = "Application analytics overview")
+    @PreAuthorize("hasAnyRole('RECRUITER','ADMIN')")
     public Overview overview(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to) {
         Period period = Period.of(from, to);
