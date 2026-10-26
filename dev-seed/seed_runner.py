@@ -17,6 +17,20 @@ from typing import Any
 
 RESERVED_DOMAIN = "example.com"
 DEFAULT_PASSWORD = "HireFlow-Seed-Only-2026!"
+SKILL_SETS = (
+    ("Java", "Spring Boot", "PostgreSQL", "Kafka"),
+    ("TypeScript", "React", "CSS", "Jest"),
+    ("Python", "Data Engineering", "SQL", "Airflow"),
+    ("AWS", "Docker", "Kubernetes", "Terraform"),
+    ("Selenium", "JUnit", "API Testing", "CI/CD"),
+)
+JOB_FAMILIES = (
+    ("Backend Engineer", "Java", "Spring Boot"),
+    ("Frontend Engineer", "TypeScript", "React"),
+    ("Cloud Engineer", "AWS", "Kubernetes"),
+    ("Data Engineer", "Python", "SQL"),
+    ("QA Automation Engineer", "Selenium", "JUnit"),
+)
 
 
 class SeedSafetyError(RuntimeError):
@@ -254,6 +268,102 @@ class SeedRunner:
             for index in range(1, self.config.administrator_count + 1)
         ]
         return candidates, recruiters, administrators
+
+    def _pause_after_batch(self, completed: int) -> None:
+        if completed and completed % self.config.batch_size == 0:
+            time.sleep(0.05)
+
+    def ensure_candidate(self, user: SyntheticUser, index: int) -> str:
+        token = self.login(user.email, user.password)
+        try:
+            response = self.candidate.request(
+                "GET", f"/api/candidates/user/{user.id}", token=token
+            )
+            self.report.increment("existing", "candidates")
+            return str(response["id"])
+        except SeedRequestError as error:
+            if " returned 404:" not in str(error):
+                raise
+        skills = list(SKILL_SETS[(index - 1) % len(SKILL_SETS)])
+        response = self.candidate.request(
+            "POST",
+            "/api/candidates",
+            token=token,
+            body={
+                "userId": user.id,
+                "headline": f"{skills[0]} {skills[1]} professional",
+                "summary": (
+                    f"Synthetic {skills[0]} specialist with experience delivering "
+                    f"reliable {skills[1]} systems and collaborative engineering work."
+                ),
+                "location": ("Berlin", "Toronto", "Singapore", "Dublin")[index % 4],
+                "yearsOfExperience": (index * 3) % 13,
+                "currentCompany": f"Example Labs {index % 7 + 1}",
+                "currentJobTitle": f"{skills[0]} {skills[1]} Engineer",
+                "resumeUrl": f"https://example.com/resumes/candidate{index:03d}",
+                "linkedinUrl": f"https://example.com/profiles/candidate{index:03d}",
+                "githubUrl": f"https://example.com/github/candidate{index:03d}",
+                "skills": skills,
+            },
+            expected=(201,),
+        )
+        self.report.increment("created", "candidates")
+        return str(response["id"])
+
+    def generate_candidates(self, users: list[SyntheticUser]) -> list[tuple[SyntheticUser, str]]:
+        candidates: list[tuple[SyntheticUser, str]] = []
+        for index, user in enumerate(users, start=1):
+            candidates.append((user, self.ensure_candidate(user, index)))
+            self._pause_after_batch(index)
+        return candidates
+
+    def ensure_job(self, user: SyntheticUser, index: int) -> str:
+        token = self.login(user.email, user.password)
+        existing = self.job.request(
+            "GET", f"/api/jobs/recruiter/{user.id}", token=token
+        )
+        marker = f"Seed {self.config.random_seed} Job {index:03d}"
+        for job in existing:
+            if job.get("title") == marker:
+                self.report.increment("existing", "jobs")
+                return str(job["id"])
+        family, required, preferred = JOB_FAMILIES[(index - 1) % len(JOB_FAMILIES)]
+        response = self.job.request(
+            "POST",
+            "/api/jobs",
+            token=token,
+            body={
+                "recruiterId": user.id,
+                "title": marker,
+                "description": (
+                    f"{family} role in a synthetic company. Build, test, and operate "
+                    f"services using {required} with a focus on maintainability."
+                ),
+                "location": ("Remote", "Berlin", "Toronto", "Singapore")[index % 4],
+                "employmentType": ("FULL_TIME", "PART_TIME", "CONTRACT")[index % 3],
+                "experienceMin": index % 6,
+                "experienceMax": (index % 6) + 5,
+                "salaryMin": 60000 + (index % 5) * 5000,
+                "salaryMax": 100000 + (index % 5) * 5000,
+                "status": "OPEN",
+                "skills": [required, preferred],
+            },
+            expected=(201,),
+        )
+        self.report.increment("created", "jobs")
+        return str(response["id"])
+
+    def generate_jobs(
+        self, recruiters: list[SyntheticUser]
+    ) -> list[tuple[SyntheticUser, str]]:
+        jobs: list[tuple[SyntheticUser, str]] = []
+        if not recruiters and self.config.job_count:
+            raise SeedSafetyError("At least one recruiter is required to generate jobs.")
+        for index in range(1, self.config.job_count + 1):
+            owner = recruiters[(index - 1) % len(recruiters)]
+            jobs.append((owner, self.ensure_job(owner, index)))
+            self._pause_after_batch(index)
+        return jobs
 
 
 def build_config(environment: dict[str, str] | None = None) -> SeedConfig:
