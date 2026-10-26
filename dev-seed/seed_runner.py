@@ -149,6 +149,113 @@ class SeedClient:
         raise SeedRequestError(f"{method} {path} failed after retries: {last_error}")
 
 
+@dataclass(frozen=True)
+class SyntheticUser:
+    id: str
+    email: str
+    role: str
+    password: str
+
+
+class SeedRunner:
+    """Coordinates API calls while keeping each service's data ownership intact."""
+
+    def __init__(self, config: SeedConfig) -> None:
+        self.config = config
+        self.auth = SeedClient(config.auth_url, config.request_timeout, config.retries)
+        self.candidate = SeedClient(
+            config.candidate_url, config.request_timeout, config.retries
+        )
+        self.job = SeedClient(config.job_url, config.request_timeout, config.retries)
+        self.application = SeedClient(
+            config.application_url, config.request_timeout, config.retries
+        )
+        self.random = random.Random(config.random_seed)
+        self.report = SeedReport()
+
+    def login(self, email: str, password: str) -> str:
+        response = self.auth.request(
+            "POST",
+            "/api/auth/login",
+            body={"email": email, "password": password},
+        )
+        token = response.get("accessToken") if isinstance(response, dict) else None
+        if not token:
+            raise SeedRequestError("Auth service login did not return an access token.")
+        return str(token)
+
+    def ensure_user(self, token: str, email: str, role: str, index: int) -> SyntheticUser:
+        try:
+            response = self.auth.request(
+                "GET", f"/api/users/email/{email}", token=token
+            )
+            self.report.increment("existing", role.lower())
+        except SeedRequestError as error:
+            if " returned 404:" not in str(error):
+                raise
+            response = self.auth.request(
+                "POST",
+                "/api/users",
+                token=token,
+                body={
+                    "email": email,
+                    "firstName": role.title(),
+                    "lastName": f"Seed{index:03d}",
+                    "password": self.config.synthetic_password,
+                },
+                expected=(201,),
+            )
+            self.report.increment("created", role.lower())
+        user_id = response.get("id") if isinstance(response, dict) else None
+        if not user_id:
+            raise SeedRequestError(f"Auth service returned no id for {email}.")
+        current_role = response.get("role")
+        if current_role != role:
+            response = self.auth.request(
+                "PUT",
+                f"/api/users/{user_id}/role",
+                token=token,
+                body={"role": role},
+            )
+        return SyntheticUser(
+            id=str(user_id),
+            email=email,
+            role=role,
+            password=self.config.synthetic_password,
+        )
+
+    def generate_users(self) -> tuple[list[SyntheticUser], list[SyntheticUser], list[SyntheticUser]]:
+        admin_token = self.login(self.config.admin_email, self.config.admin_password)
+        candidates = [
+            self.ensure_user(
+                admin_token,
+                f"candidate{index:03d}@{RESERVED_DOMAIN}",
+                "CANDIDATE",
+                index,
+            )
+            for index in range(1, self.config.candidate_count + 1)
+        ]
+        recruiters = [
+            self.ensure_user(
+                admin_token,
+                f"recruiter{index:03d}@{RESERVED_DOMAIN}",
+                "RECRUITER",
+                index,
+            )
+            for index in range(1, self.config.recruiter_count + 1)
+        ]
+        administrators = [
+            self.ensure_user(
+                admin_token,
+                f"admin{index:03d}@{RESERVED_DOMAIN}",
+                "ADMIN",
+                index,
+            )
+            for index in range(1, self.config.administrator_count + 1)
+        ]
+        return candidates, recruiters, administrators
+
+
 def build_config(environment: dict[str, str] | None = None) -> SeedConfig:
     values = os.environ if environment is None else environment
 

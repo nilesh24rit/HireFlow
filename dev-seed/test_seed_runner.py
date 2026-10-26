@@ -1,6 +1,6 @@
 import unittest
 
-from seed_runner import SeedConfig, SeedSafetyError, build_config
+from seed_runner import SeedConfig, SeedSafetyError, SeedRunner, build_config
 
 
 class SeedSafetyTest(unittest.TestCase):
@@ -32,6 +32,15 @@ class SeedSafetyTest(unittest.TestCase):
         )
         self.assertEqual(config.random_seed, 42)
         self.assertEqual(config.batch_size, 7)
+
+    def test_random_seed_is_reproducible(self):
+        first = SeedRunner(
+            SeedConfig(random_seed=123, admin_email="a@example.com", admin_password="password")
+        ).random
+        second = SeedRunner(
+            SeedConfig(random_seed=123, admin_email="a@example.com", admin_password="password")
+        ).random
+        self.assertEqual([first.random() for _ in range(5)], [second.random() for _ in range(5)])
 
 
 if __name__ == "__main__":
