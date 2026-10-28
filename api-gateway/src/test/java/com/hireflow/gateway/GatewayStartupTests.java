@@ -33,6 +33,8 @@ class GatewayStartupTests {
                         "job-service",
                         "application-service",
                         "ai-service",
+                        "notification-service",
+                        "analytics-service",
                         "google-oauth2");
     }
 }

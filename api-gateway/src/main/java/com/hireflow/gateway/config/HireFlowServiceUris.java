@@ -2,6 +2,7 @@ package com.hireflow.gateway.config;
 
 import java.net.URI;
 
+import org.springframework.boot.context.properties.bind.ConstructorBinding;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -29,6 +30,7 @@ public record HireFlowServiceUris(
                 aiServiceUri, null, null);
     }
 
+    @ConstructorBinding
     public HireFlowServiceUris {
         authServiceUri = requireHttp(authServiceUri, "http://localhost:8081");
         candidateServiceUri = requireHttp(candidateServiceUri, "http://localhost:8082");

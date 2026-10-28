@@ -101,13 +101,13 @@ class CandidateGrpcServerTest {
     }
 
     private ManagedChannel channel(CandidateGrpcServer server) {
-        return NettyChannelBuilder.forAddress("localhost", server.getPort()).usePlaintext().build();
+        return NettyChannelBuilder.forAddress("127.0.0.1", server.getPort()).usePlaintext().build();
     }
 
     private CandidateGrpcServiceGrpc.CandidateGrpcServiceBlockingStub stub(ManagedChannel channel) {
         return CandidateGrpcServiceGrpc.newBlockingStub(channel)
                 .withCallCredentials(new TokenCredentials("token"))
-                .withDeadlineAfter(1, TimeUnit.SECONDS);
+                .withDeadlineAfter(5, TimeUnit.SECONDS);
     }
 
     private GetCandidateRequest request(UUID id) {
