@@ -109,7 +109,7 @@ public class NotificationRepository {
         return jdbcTemplate.update("""
                 update notifications set delivery_status = ?, last_error = ?, next_attempt_at = ?
                  where id = ?
-                """, permanent ? DeliveryStatus.FAILED.name() : DeliveryStatus.FAILED.name(),
+                """, permanent ? DeliveryStatus.ABANDONED.name() : DeliveryStatus.FAILED.name(),
                 error, nextAttemptAt, id);
     }
 
