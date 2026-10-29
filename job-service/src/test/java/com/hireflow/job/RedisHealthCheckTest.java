@@ -3,8 +3,9 @@ package com.hireflow.job;
 import com.hireflow.job.security.TestSigningKeys;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.health.actuate.endpoint.HealthDescriptor;
+import org.springframework.boot.health.actuate.endpoint.HealthEndpoint;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.GenericContainer;
@@ -34,11 +35,11 @@ class RedisHealthCheckTest {
     }
 
     @Autowired
-    private TestRestTemplate restTemplate;
+    private HealthEndpoint healthEndpoint;
 
     @Test
     void healthEndpointReportsUp() {
-        String response = restTemplate.getForObject("/actuator/health", String.class);
-        assertThat(response).contains("UP");
+        HealthDescriptor health = healthEndpoint.health();
+        assertThat(health.getStatus().getCode()).isEqualTo("UP");
     }
 }

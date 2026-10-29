@@ -1,6 +1,6 @@
 package com.hireflow.job.config;
 
-import org.springframework.boot.actuate.data.redis.RedisHealthIndicator;
+import org.springframework.boot.data.redis.health.DataRedisHealthIndicator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -9,7 +9,7 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 public class RedisHealthConfiguration {
 
     @Bean
-    public RedisHealthIndicator redisHealthIndicator(RedisConnectionFactory redisConnectionFactory) {
-        return new RedisHealthIndicator(redisConnectionFactory);
+    public DataRedisHealthIndicator redisHealthIndicator(RedisConnectionFactory redisConnectionFactory) {
+        return new DataRedisHealthIndicator(redisConnectionFactory);
     }
 }
