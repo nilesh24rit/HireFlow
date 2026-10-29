@@ -16,8 +16,11 @@ class GatewayRouteConfigurationTest {
                 URI.create("http://ai"));
 
         assertThat(services.aiServiceUri()).isEqualTo(URI.create("http://ai"));
+        assertThat(GatewayRouteConfiguration.AUTH_PATH).isEqualTo("/api/auth/**");
         assertThat(GatewayRouteConfiguration.AI_PATH).isEqualTo("/api/ai/**");
         assertThat(GatewayRouteConfiguration.NOTIFICATIONS_PATH)
                 .isEqualTo("/api/notifications/**");
+        assertThat(GatewayRouteConfiguration.ANALYTICS_PATH)
+                .isEqualTo("/api/analytics/**");
     }
 }

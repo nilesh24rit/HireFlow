@@ -65,6 +65,9 @@ the services without rewriting paths, methods, status codes, or response bodies:
 | `/api/candidates/**` | `candidate-service` | `http://localhost:8082` |
 | `/api/jobs/**` | `job-service` | `http://localhost:8083` |
 | `/api/applications/**` | `application-service` | `http://localhost:8084` |
+| `/api/ai/**` | `ai-service` | `http://localhost:8085` |
+| `/api/notifications/**` | `notification-service` | `http://localhost:8086` |
+| `/api/analytics/**` | `analytics-service` | `http://localhost:8087` |
 | `/oauth2/authorization/**`<br>`/login/oauth2/code/**`<br>`/api/auth/oauth2/**` | `google-oauth2` | `http://localhost:8081` |
 
 Target addresses are development defaults declared in source and can be overridden with the
