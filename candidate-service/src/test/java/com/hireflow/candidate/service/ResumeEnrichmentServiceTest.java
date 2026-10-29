@@ -1,6 +1,7 @@
 package com.hireflow.candidate.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -103,6 +104,29 @@ class ResumeEnrichmentServiceTest {
 
         verify(candidateService).applyResumeEnrichment(candidateId, request);
         assertThat(response.status()).isEqualTo(ResumeEnrichmentStatus.CONFIRMED);
+    }
+
+    @Test
+    void expiredProposalCannotBeConfirmedOrApplyProfileChanges() {
+        UUID enrichmentId = UUID.randomUUID();
+        ResumeEnrichment enrichment = new ResumeEnrichment();
+        ReflectionTestUtils.setField(enrichment, "id", enrichmentId);
+        enrichment.setCandidateId(candidateId);
+        enrichment.setProcessingId(UUID.randomUUID());
+        enrichment.setProposedData(new ObjectMapper().valueToTree(data()).toString());
+        enrichment.setStatus(ResumeEnrichmentStatus.PENDING);
+        enrichment.setCreatedAt(Instant.now().minus(Duration.ofHours(2)));
+        enrichment.setExpiresAt(Instant.now().minus(Duration.ofHours(1)));
+        when(candidateRepository.findByUserId(userId)).thenReturn(Optional.of(candidate(candidateId)));
+        when(enrichmentRepository.findByIdAndCandidateId(enrichmentId, candidateId))
+                .thenReturn(Optional.of(enrichment));
+
+        assertThatThrownBy(() -> service.confirm(userId, enrichmentId,
+                new ResumeConfirmationRequest("Engineer", null, null, null, null, List.of())))
+                .isInstanceOf(com.hireflow.candidate.exception.InvalidRequestException.class)
+                .hasMessageContaining("no longer pending");
+
+        verify(candidateService, org.mockito.Mockito.never()).applyResumeEnrichment(any(), any());
     }
 
     private ResumeData data() {
