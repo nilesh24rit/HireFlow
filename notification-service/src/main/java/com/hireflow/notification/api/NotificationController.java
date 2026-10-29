@@ -31,7 +31,8 @@ public class NotificationController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         UUID userId = userId(authentication);
-        if (page < 0 || size < 1 || size > 100) {
+        if (page < 0 || size < 1 || size > 100
+                || page > Integer.MAX_VALUE / size) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid pagination");
         }
         return repository.findForRecipient(userId, size, page * size).stream()
