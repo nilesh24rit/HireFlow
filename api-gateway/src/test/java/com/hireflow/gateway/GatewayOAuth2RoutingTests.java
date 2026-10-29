@@ -158,6 +158,7 @@ class GatewayOAuth2RoutingTests {
     @Test
     void everyExistingRouteIsUnchangedByTheOAuth2Routes() {
         assertRoutesTo("/api/users/42", "auth-service");
+        assertRoutesTo("/api/auth/login", "auth-service");
         assertRoutesTo("/api/candidates/7", "candidate-service");
         assertRoutesTo("/api/jobs/9", "job-service");
         assertRoutesTo("/api/applications/3", "application-service");
@@ -165,13 +166,15 @@ class GatewayOAuth2RoutingTests {
 
     @Test
     void pathsThatAreNotOAuth2StayUnrouted() {
-        // Only the three OAuth2 paths were added. Credential login keeps its existing
-        // direct-to-service deployment and is still not proxied.
         client().post().uri("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue("{}")
                 .exchange()
-                .expectStatus().isNotFound();
+                .expectStatus().isOk()
+                .expectBody(String.class)
+                .value(body -> assertThat(body)
+                        .contains("service=auth-service")
+                        .contains("path=/api/auth/login"));
 
         client().get().uri("/api/unknown/thing").exchange().expectStatus().isNotFound();
         client().get().uri("/not-routed").exchange().expectStatus().isNotFound();

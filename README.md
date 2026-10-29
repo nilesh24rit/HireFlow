@@ -61,6 +61,7 @@ the services without rewriting paths, methods, status codes, or response bodies:
 | Public path | Route id | Target (local development) |
 | --- | --- | --- |
 | `/api/users/**` | `auth-service` | `http://localhost:8081` |
+| `/api/auth/**` | `auth-api` | `http://localhost:8081` |
 | `/api/candidates/**` | `candidate-service` | `http://localhost:8082` |
 | `/api/jobs/**` | `job-service` | `http://localhost:8083` |
 | `/api/applications/**` | `application-service` | `http://localhost:8084` |
@@ -72,10 +73,8 @@ credentials. Unmatched paths return `404`, an unreachable service returns a clea
 without stack traces, and every response produced by a service is passed through untouched.
 Gateway access logs record only route id, HTTP method, request path, and response status.
 
-The credential login endpoint `POST /api/auth/login` is not part of this table: only the
-three paths Google sign-in needs were added, so login keeps its direct deployment against
-auth-service (`http://localhost:8081/api/auth/login`). Once a client holds an access token
-it is sent through the gateway on the routed paths above.
+Credential login (`POST /api/auth/login`) is routed through the gateway to auth-service.
+Once a client holds an access token it is sent through the gateway on the routed paths above.
 
 The `google-oauth2` route exists because a browser OAuth2 flow cannot be pointed at an
 internal address: the entry point that redirects to Google, the callback Google redirects

@@ -14,7 +14,7 @@ import org.springframework.context.annotation.Configuration;
  * {@code /api/...} contract, so no path rewriting filters are needed:</p>
  *
  * <pre>
- * auth-service        /api/users/**         -&gt; auth-service
+ * auth-service        /api/users/**, /api/auth/** -&gt; auth-service
  * candidate-service   /api/candidates/**    -&gt; candidate-service
  * job-service         /api/jobs/**          -&gt; job-service
  * application-service /api/applications/**  -&gt; application-service
@@ -52,6 +52,7 @@ import org.springframework.context.annotation.Configuration;
 public class GatewayRouteConfiguration {
 
     static final String AUTH_SERVICE_ROUTE_ID = "auth-service";
+    static final String AUTH_API_ROUTE_ID = "auth-api";
     static final String CANDIDATE_SERVICE_ROUTE_ID = "candidate-service";
     static final String JOB_SERVICE_ROUTE_ID = "job-service";
     static final String APPLICATION_SERVICE_ROUTE_ID = "application-service";
@@ -61,6 +62,7 @@ public class GatewayRouteConfiguration {
     static final String GOOGLE_OAUTH2_ROUTE_ID = "google-oauth2";
 
     static final String USERS_PATH = "/api/users/**";
+    static final String AUTH_PATH = "/api/auth/**";
     static final String CANDIDATES_PATH = "/api/candidates/**";
     static final String JOBS_PATH = "/api/jobs/**";
     static final String APPLICATIONS_PATH = "/api/applications/**";
@@ -82,6 +84,9 @@ public class GatewayRouteConfiguration {
         return builder.routes()
                 .route(AUTH_SERVICE_ROUTE_ID, route -> route
                         .path(USERS_PATH)
+                        .uri(services.authServiceUri()))
+                .route(AUTH_API_ROUTE_ID, route -> route
+                        .path(AUTH_PATH)
                         .uri(services.authServiceUri()))
                 .route(CANDIDATE_SERVICE_ROUTE_ID, route -> route
                         .path(CANDIDATES_PATH)

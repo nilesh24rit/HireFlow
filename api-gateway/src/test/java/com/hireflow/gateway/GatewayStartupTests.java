@@ -12,7 +12,7 @@ import org.springframework.cloud.gateway.route.RouteLocator;
 
 /**
  * Verifies that the gateway application starts and exposes exactly the HireFlow routes
- * with stable route ids: the five resource routes plus the single Google sign-in route.
+ * with stable route ids: the auth API, resource routes, and the Google sign-in route.
  */
 @SpringBootTest
 class GatewayStartupTests {
@@ -29,6 +29,7 @@ class GatewayStartupTests {
                 .extracting(Route::getId)
                 .containsExactlyInAnyOrder(
                         "auth-service",
+                        "auth-api",
                         "candidate-service",
                         "job-service",
                         "application-service",
