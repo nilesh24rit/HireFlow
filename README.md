@@ -1,175 +1,132 @@
-# HireFlow
+<!-- ============ HEADER (your existing SVG pipeline, untouched) ============ -->
+<p align="center">
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:00ff9c,100:0d1117&height=140&section=header&text=&fontSize=0" width="100%" />
+</p>
 
-HireFlow is an AI-powered recruitment platform designed to streamline hiring workflows. The platform enables recruiters to publish and manage job postings, candidates to maintain comprehensive profiles and submit applications, and incorporates intelligent capabilities for automated candidate-job matching and resume analysis.
+<p align="center">
+  <a href="https://github.com/nilesh24rit/nilesh24rit/raw/main/header-contributions.svg">
+    <img src="https://github.com/nilesh24rit/nilesh24rit/raw/main/header-contributions.svg" />
+  </a>
+  <br/>
+  <img src="https://github.com/nilesh24rit/nilesh24rit/raw/main/contrib-heatmap.svg" />
+</p>
 
-## Technologies
+<p align="center">
+  <img src="https://github.com/nilesh24rit/nilesh24rit/raw/main/header-whoami.svg" />
+</p>
 
-- Java 25
-- Spring Boot 4.1.x
-- Apache Maven
-- Microservices Architecture
-- PostgreSQL
-- Redis
-- Apache Kafka
-- gRPC & Protocol Buffers
-- Spring AI
-- Spring Security & Google OAuth2
-- Springdoc OpenAPI
+<table align="center">
+  <tr>
+    <td><img src="https://github.com/nilesh24rit/nilesh24rit/raw/main/nilesh-ascii.svg" /></td>
+    <td><img src="https://github.com/nilesh24rit/nilesh24rit/raw/main/info-card.svg" /></td>
+  </tr>
+</table>
 
-## Architecture & Services
+<!-- ============ TYPING BANNER ============ -->
+<p align="center">
+  <a href="https://github.com/nilesh24rit">
+    <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=22&duration=3000&pause=800&color=00FF9C&center=true&vCenter=true&width=720&lines=Hey+%F0%9F%91%8B+I'm+Nilesh+Kumar+Singh;I+turn+coffee+%E2%98%95+into+Spring+Boot+microservices;I+break+things+in+Docker+so+prod+doesn't+have+to;gRPC+%E2%86%92+Kafka+%E2%86%92+Redis+%E2%86%92+PostgreSQL+%E2%86%92+%E2%9C%A8;Looking+for+a+Backend+SDE+Internship+%F0%9F%9A%80" alt="Typing SVG" />
+  </a>
+</p>
 
-The platform is organized into independent microservices:
+<p align="center">
+  <img src="https://img.shields.io/badge/Java-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white" />
+  <img src="https://img.shields.io/badge/Spring_Boot-6DB33F?style=for-the-badge&logo=springboot&logoColor=white" />
+  <img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" />
+  <img src="https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white" />
+  <img src="https://img.shields.io/badge/Kafka-231F20?style=for-the-badge&logo=apachekafka&logoColor=white" />
+  <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" />
+</p>
 
-- **api-gateway**: Central routing, rate limiting, and API edge management.
-- **auth-service**: Identity management, authentication, token issuance, and OAuth2 integration.
-- **candidate-service**: Candidate profiles, work experience, education, and portfolio records.
-- **job-service**: Job requisitions, specifications, lifecycle, and recruiter management.
-- **application-service**: Job application submission, review pipelines, and status tracking.
-- **ai-service**: Resume parsing, skill extraction, candidate-job matching, and recommendation models.
-- **notification-service**: Event-driven alerts, messaging, and multi-channel notifications.
-- **analytics-service**: Recruitment metrics, funnel analytics, and hiring pipeline reporting.
+<p align="center">
+  <img src="https://komarev.com/ghpvc/?username=nilesh24rit&label=Profile+views&color=00ff9c&style=flat-square" />
+  <img src="https://img.shields.io/badge/Status-Open_to_Internships-00ff9c?style=flat-square" />
+  <img src="https://img.shields.io/badge/B.Tech_CSE-MSRIT_Bengaluru-blue?style=flat-square" />
+</p>
 
-## Build
+---
 
-Every service builds independently with Apache Maven. The build enforces JDK 25 or newer and Maven 3.9 or newer.
+## 🧠 `./about-me.java`
 
-```bash
-cd api-gateway
-mvn clean verify
+```java
+public class Nilesh {
+
+    String name      = "Nilesh Kumar Singh";
+    String college   = "M. S. Ramaiah Institute of Technology, Bengaluru";
+    String degree    = "B.Tech CSE (pre-final year)";
+    String superpower = "Making backends scale (and Dockerfiles stop crying)";
+
+    String[] stack = {
+        "Java", "Spring Boot", "REST APIs", "Microservices",
+        "PostgreSQL", "Redis", "Kafka", "gRPC", "Docker"
+    };
+
+    String currentlyHunting = "Backend SWE internships 🎯";
+    String longTermQuest    = "Ship code in Japan 🇯🇵";
+    String funFact          = "I read stack traces for fun. Mostly out of necessity.";
+
+    public void run() {
+        while (alive) {
+            eat(); sleep(); code(); deploy(); debug(); repeat();
+        }
+    }
+}
 ```
 
-Repeat the same command inside each service directory. Shared protobuf definitions live in
-`proto/` and are generated by the `grpc-contracts` module. Candidate and Application services
-consume that artifact rather than maintaining duplicate generated sources:
+---
 
-```bash
-mvn -f grpc-contracts/pom.xml clean install
-```
+## 🛠️ Arsenal
 
-The Candidate gRPC server listens on `hireflow.grpc.candidate.port` (default `9092`), while
-Application uses `hireflow.grpc.candidate.target` (default `localhost:9092`) and applies the
-configured `hireflow.grpc.candidate.deadline-ms` (default `1000`). These are internal-service
-defaults for local development, not public gateway routes. TLS can be enabled with externally
-provided certificate/key paths on Candidate and the corresponding client TLS flag; production
-service identity and authorization remain a follow-up concern for Step 19.
+<p align="center">
+  <img src="https://skillicons.dev/icons?i=java,spring,postgres,redis,kafka,mongodb,docker,git,github,githubactions,grafana,prometheus,linux,idea&perline=7" />
+</p>
 
-## API Gateway Routing
+---
 
-The `api-gateway` module is the single entry point of the platform. It forwards requests to
-the services without rewriting paths, methods, status codes, or response bodies:
+## 🔥 Featured Projects
 
-| Public path | Route id | Target (local development) |
-| --- | --- | --- |
-| `/api/users/**` | `auth-service` | `http://localhost:8081` |
-| `/api/auth/**` | `auth-api` | `http://localhost:8081` |
-| `/api/candidates/**` | `candidate-service` | `http://localhost:8082` |
-| `/api/jobs/**` | `job-service` | `http://localhost:8083` |
-| `/api/applications/**` | `application-service` | `http://localhost:8084` |
-| `/api/ai/**` | `ai-service` | `http://localhost:8085` |
-| `/api/notifications/**` | `notification-service` | `http://localhost:8086` |
-| `/api/analytics/**` | `analytics-service` | `http://localhost:8087` |
-| `/oauth2/authorization/**`<br>`/login/oauth2/code/**`<br>`/api/auth/oauth2/**` | `google-oauth2` | `http://localhost:8081` |
+| Project | What it does | Stack |
+|---|---|---|
+| 🛒 **[CommerceX](https://github.com/nilesh24rit/E-Commerce)** | Production-style e-commerce backend, live on Render, with monitoring dashboards | `Spring Boot` `PostgreSQL` `Redis` `Prometheus` `Grafana` |
+| 🏥 **[Patient-Manager](https://github.com/nilesh24rit/Patient-Manager)** | Microservices system: patient, billing (gRPC), analytics (Kafka + Protobuf) behind an API gateway | `Spring Cloud Gateway` `gRPC` `Kafka` `Docker` |
+| 🛡️ **[CacheGuard](https://github.com/nilesh24rit/CacheGuard)** | Redis-powered rate limiting for Spring Boot apps | `Spring Boot` `Redis` |
+| 📓 **[JournalApp](https://github.com/nilesh24rit/JournalApp)** | Secure journaling backend with sessions, Kafka events and cloud-hosted DBs | `Spring Security` `MongoDB` `Redis` `Kafka` |
+| 🧮 **[dsa-toolkit-java](https://github.com/nilesh24rit/dsa-toolkit-java)** | Modular DSA library: graph algorithms, sorting, self-balancing trees | `Java` `DSA` |
 
-Target addresses are development defaults declared in source and can be overridden with the
-`hireflow.services.*-uri` properties (or equivalent environment variables); they contain no
-credentials. Unmatched paths return `404`, an unreachable service returns a clean `502`
-without stack traces, and every response produced by a service is passed through untouched.
-Gateway access logs record only route id, HTTP method, request path, and response status.
+---
 
-Credential login (`POST /api/auth/login`) is routed through the gateway to auth-service.
-Once a client holds an access token it is sent through the gateway on the routed paths above.
+## 📊 Stats (a.k.a. proof I touch grass... er, keyboards)
 
-The `google-oauth2` route exists because a browser OAuth2 flow cannot be pointed at an
-internal address: the entry point that redirects to Google, the callback Google redirects
-back to, and the endpoint that redeems the resulting handoff code must all be reachable on
-the public origin the user is looking at. The gateway adds no `X-Forwarded-*` header of its
-own and strips any a caller sent, so no forwarded header can describe that origin — auth-service
-therefore pins its callback URL from operator configuration (`HIREFLOW_OAUTH_REDIRECT_URI`,
-e.g. `http://localhost:8080`) rather than from a request header.
+<p align="center">
+  <img height="170" src="https://github-readme-stats.vercel.app/api?username=nilesh24rit&show_icons=true&theme=radical&hide_border=true&bg_color=0d1117" />
+  <img height="170" src="https://github-readme-stats.vercel.app/api/top-langs/?username=nilesh24rit&layout=compact&theme=radical&hide_border=true&bg_color=0d1117" />
+</p>
 
-Swagger/OpenAPI stays on the services themselves and is unaffected by the gateway:
-`http://localhost:<service-port>/v3/api-docs` and `/swagger-ui.html`.
+<p align="center">
+  <img src="https://github-readme-streak-stats.herokuapp.com/?user=nilesh24rit&theme=radical&hide_border=true&background=0d1117" />
+</p>
 
-## Security
+---
 
-Security is a stateless bearer-JWT foundation:
+## 🎯 Currently
 
-- **Credential login:** `POST /api/auth/login` with `{email, password}` answers
-  `{accessToken, tokenType: "Bearer", expiresIn}` on success and a single generic `401`
-  "Invalid email or password" for every failure — wrong password, unknown email, and accounts
-  without a stored hash are indistinguishable, so the endpoint cannot be used to enumerate
-  users. Passwords are stored as BCrypt hashes and are never returned, logged, or echoed.
-- **Google sign-in** is an *additional* way to obtain the same token, enabled only when the
-  environment supplies `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`; without both the
-  OAuth2 endpoints simply do not exist and nothing is half-configured. The flow is
-  `GET /oauth2/authorization/google` → Google → `GET /login/oauth2/code/google`, then
-  `POST /api/auth/oauth2/token`:
-  - Google's stable **`sub`** is the identity key, never the email — Google never changes
-    `sub`, whereas a user may change their address. The email is used only after `sub` has
-    no match, and only when Google marks it `email_verified`; an unverified email is refused.
-  - **No automatic linking by email.** A Google identity whose email matches an existing
-    account is refused with `409` rather than merged, because a matching email is not proof
-    that two identities belong to the same person — silently linking would be an
-    account-takeover vector. Users who legitimately want both methods link them from an
-    authenticated session, so linking always requires already owning the account.
-  - New Google users get the default registration role (`CANDIDATE`), assigned server-side;
-    a caller can never obtain `RECRUITER` or `ADMIN` through Google. Google-only accounts
-    hold no password hash, so they can never password-login.
-  - **The token never appears in a redirect URL.** The callback answers with a single-use,
-    short-lived, unguessable handoff code; exchanging it once at `POST /api/auth/oauth2/token`
-    returns the ordinary `LoginResponse`. A replayed code is refused, and the OAuth2 `state`
-    parameter — validated by Spring Security before any of this runs — defeats login CSRF.
-  - Failures answer in the common error contract with no internal detail: cancelled at
-    Google `401`, unverifiable state `400`, unverified email `401`, disabled account `403`,
-    email conflict `409`, anything unexpected a generic `500`. Google access/refresh tokens,
-    authorization codes, handoff codes, JWTs and the client secret are never logged.
-- **auth-service** issues tokens: subject is the user's UUID id, with `iat`, `exp`, issuer
-  (`hireflow-auth`) and a server-derived role claim. The signing key comes from
-  `hireflow.jwt.signing-key` (env `HIREFLOW_JWT_SIGNINGKEY`); the application fails at
-  startup when it is missing, and no key is hardcoded anywhere.
-- **All four services validate tokens** through the same stateless filter: signature,
-  algorithm (HS256), expiry and issuer are checked, the request carries no session or
-  cookie, and `401`/`403` answer in the common error contract with a `Bearer` challenge
-  (`error="invalid_token"` when a token was supplied and rejected). No role rules exist
-  yet.
-- **CSRF policy:** authority never lives in a cookie or session — each request authenticates
-  itself through the `Authorization` header — so every service runs with
-  `SessionCreationPolicy.STATELESS` and CSRF protection is deliberately disabled, with the
-  reasoning documented in `SecurityConfiguration`.
-- **Security responses** use the common error contract: `401` and `403` answer
-  `{timestamp, status, error, code, message, path}` with the `UNAUTHENTICATED`/`FORBIDDEN`
-  codes, `401` keeps its `WWW-Authenticate` challenge, and no stack traces, claims, or
-  internal details are exposed. Responses are written directly, so no error dispatch can
-  rewrite a status or path.
-- **The gateway performs no authentication.** It forwards the `Authorization` header
-  byte-for-byte and validates nothing itself: token validation happens only in the service
-  behind the route, so behavior is identical direct and through the gateway, and `401`
-  responses (including `invalid_token` rejections) pass through untouched. This keeps the
-  gateway free of signing keys and keeps edge and service from ever disagreeing about a
-  credential.
-- **Swagger documents the contract:** every service publishes a `bearerAuth` HTTP security
-  scheme (`bearer`, JWT format) in its OpenAPI document, every protected operation carries
-  that security requirement plus a `401` response in the shared error model, and the public
-  token-issuing endpoints `POST /api/auth/login` and `POST /api/auth/oauth2/token` are
-  deliberately exempt.
-- No health endpoint is exposed (no actuator dependency in any service).
+- 🔭 Building & breaking **microservices** (and fixing them at 2 AM)
+- 🧗 Grinding **DSA** alongside backend projects
+- 📬 Open to **backend software engineering internships**
+- 🇯🇵 Long-term goal: working in the **Japanese tech scene**
 
-| Check | auth-service (8081) | candidate/job/application | via gateway (8080) |
-| --- | --- | --- | --- |
-| `POST /api/auth/login` with valid credentials | `200` + access token | — | — |
-| `POST /api/auth/login` with bad credentials | `401` generic message | — | — |
-| `GET /oauth2/authorization/google` (Google enabled) | `302` to Google with `state` | — | `302` passthrough |
-| `GET /oauth2/authorization/google` (no Google credentials) | `404`, OAuth2 absent | — | `404` passthrough |
-| `GET /login/oauth2/code/google` with no pending sign-in | `400` `INVALID_REQUEST` | — | `400` passthrough |
-| `POST /api/auth/oauth2/token` with a fresh handoff code | `200` + access token | — | `200` passthrough |
-| `POST /api/auth/oauth2/token` with a used/unknown code | `401` generic message | — | `401` passthrough |
-| Request without a token | `401` + error contract | `401` + error contract | `401` passthrough |
-| Request with an invalid/expired token | `401` `invalid_token` | `401` `invalid_token` | `401` passthrough |
-| `GET /api/users/{id}` with a valid token | `200` | — | `200`, byte-identical body |
-| Create via `POST` (no CSRF token) | `201` with a token | `201` with a token | `201` |
-| `/v3/api-docs`, `/swagger-ui.html` | `401` → `200` with a token | `200` (public) | — |
-| `/actuator/health` | not present (`404`) | not present (`404`) | — |
+---
 
-Manual Google login — actually signing in with a real Google account — requires real
-`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` and is therefore **not covered by the automated
-suite**. Everything below Google's own endpoints is covered by tests that mock Google.
+## 🤝 Let's connect
+
+<p align="center">
+  <a href="https://github.com/nilesh24rit"><img src="https://img.shields.io/badge/GitHub-nilesh24rit-181717?style=for-the-badge&logo=github" /></a>
+</p>
+
+<p align="center">
+  <i>"It works on my machine" — me, right before Docker humbled me. 🐳</i>
+</p>
+
+<p align="center">
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:0d1117,100:00ff9c&height=120&section=footer" width="100%" />
+</p>
