@@ -36,8 +36,8 @@ class CandidateGrpcClientIntegrationTest {
         try {
             var configuration = new CandidateGrpcClientConfiguration();
             channel = configuration.candidateGrpcChannel(
-                    "localhost:" + server.getPort(), false, "integration-token");
-            var stub = configuration.candidateGrpcStub(channel, 1000);
+                    "127.0.0.1:" + server.getPort(), false, "integration-token");
+            var stub = configuration.candidateGrpcStub(channel, 5000);
             var response = new CandidateGrpcClient(stub::getCandidateById)
                     .getCandidateById(candidateId);
             assertThat(response.candidateId()).isEqualTo(candidateId);
