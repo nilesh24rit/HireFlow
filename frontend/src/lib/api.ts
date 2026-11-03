@@ -40,6 +40,9 @@ async function fetchApi<T>(input: RequestInfo, init: RequestInit = {}): Promise<
   return response.json() as Promise<T>
 }
 
+/** API error type for use in components */
+export type { ApiErrorResponse }
+
 /** Base URL for all API calls (relative to the gateway) */
 const BASE_URL = '/api'
 
