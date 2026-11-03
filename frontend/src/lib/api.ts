@@ -384,6 +384,9 @@ export type {
   LoginResponse,
 }
 
+/** API base path used by the gateway to route to backend services */
+export const BASE_URL = '/api'
+
 export type LoginResponse = {
   token: string
   role: Role
@@ -425,3 +428,6 @@ export type {
   EmploymentType,
   LoginResponse,
 }
+
+/** API base path used by the gateway to route to backend services */
+export const BASE_URL = '/api'
