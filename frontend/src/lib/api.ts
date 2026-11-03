@@ -381,6 +381,7 @@ export type {
   UserResponse,
   Role,
   EmploymentType,
+  LoginResponse,
 }
 
 export type LoginResponse = {
@@ -422,4 +423,5 @@ export type {
   UserResponse,
   Role,
   EmploymentType,
+  LoginResponse,
 }
