@@ -64,7 +64,13 @@ export type {
   LoginResponse,
 }
 
-/** Aggregated API client for frontend imports */
+/** Aggregated API client for frontend imports.
+ * 
+ * This object aggregates all API service modules (candidates, jobs, applications,
+ * ai, notifications, users, analytics) providing a single import point for the
+ * frontend. Each service module provides typed methods for backend operations
+ * routed through the API gateway.
+ */
 export const api = {
   candidates,
   jobs,
