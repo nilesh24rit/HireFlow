@@ -366,9 +366,6 @@ export type {
   LoginResponse,
 }
 
-/** API base path used by the gateway to route to backend services */
-export const BASE_URL = '/api'
-
 /** Aggregated API client for frontend imports */
 export const api = {
   candidates,
@@ -442,9 +439,6 @@ export type {
   EmploymentType,
   LoginResponse,
 }
-
-/** API base path used by the gateway to route to backend services */
-export const BASE_URL = '/api'
 
 /** Aggregated API client for frontend imports */
 export const api = {
