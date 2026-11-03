@@ -406,3 +406,20 @@ export type AnalyticsOverview = {
 
 /** API error type exported for use in components */
 export type { ApiErrorResponse }
+
+/** Root API types exported for convenience */
+export type {
+  Candidate,
+  CandidatePayload,
+  Job,
+  CreateJobPayload,
+  Application,
+  ApplicationStatus,
+  ApplicationCreatePayload,
+  ApplicationResponse,
+  MatchResult,
+  Notification,
+  UserResponse,
+  Role,
+  EmploymentType,
+}
