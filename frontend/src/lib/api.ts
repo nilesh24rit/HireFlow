@@ -40,28 +40,10 @@ async function fetchApi<T>(input: RequestInfo, init: RequestInit = {}): Promise<
   return response.json() as Promise<T>
 }
 
-/** API error type for use in components */
-export type { ApiErrorResponse }
-
 /** Base URL for all API calls (relative to the gateway) */
 const BASE_URL = '/api'
 
-/**
- * HireFlow Frontend API Client
- *
- * This module provides typed access to the backend services through the API gateway.
- * All endpoints are routed through /api/... paths which the gateway forwards to the
- * appropriate micro-service (auth on 8081, candidate on 8082, job on 8083, etc.).
- *
- * API base path: /api
- *   /auth/**       -> auth-service (localhost:8081)
- *   /candidates/** -> candidate-service (localhost:8082)
- *   /jobs/**       -> job-service (localhost:8083)
- *   /applications/** -> application-service (localhost:8084)
- *   /ai/**         -> ai-service (localhost:8085)
- *   /notifications/** -> notification-service (localhost:8086)
- *   /analytics/**  -> analytics-service (localhost:8087)
- */
+/** HireFlow Frontend API Client documentation is provided above. */
 
 /**
  --- Candidate Service ---
@@ -387,6 +369,38 @@ export type {
 /** API base path used by the gateway to route to backend services */
 export const BASE_URL = '/api'
 
+/** Aggregated API client for frontend imports */
+export const api = {
+  candidates,
+  jobs,
+  applications,
+  ai,
+  notifications,
+  users,
+  analytics,
+}
+
+/** API error type for use in components */
+export type { ApiErrorResponse }
+
+/** Root API types exported for convenience */
+export type {
+  Candidate,
+  CandidatePayload,
+  Job,
+  CreateJobPayload,
+  Application,
+  ApplicationStatus,
+  ApplicationCreatePayload,
+  ApplicationResponse,
+  MatchResult,
+  Notification,
+  UserResponse,
+  Role,
+  EmploymentType,
+  LoginResponse,
+}
+
 export type LoginResponse = {
   token: string
   role: Role
@@ -431,3 +445,35 @@ export type {
 
 /** API base path used by the gateway to route to backend services */
 export const BASE_URL = '/api'
+
+/** Aggregated API client for frontend imports */
+export const api = {
+  candidates,
+  jobs,
+  applications,
+  ai,
+  notifications,
+  users,
+  analytics,
+}
+
+/** API error type for use in components */
+export type { ApiErrorResponse }
+
+/** Root API types exported for convenience */
+export type {
+  Candidate,
+  CandidatePayload,
+  Job,
+  CreateJobPayload,
+  Application,
+  ApplicationStatus,
+  ApplicationCreatePayload,
+  ApplicationResponse,
+  MatchResult,
+  Notification,
+  UserResponse,
+  Role,
+  EmploymentType,
+  LoginResponse,
+}
