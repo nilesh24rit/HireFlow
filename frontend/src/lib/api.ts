@@ -13,6 +13,13 @@
  *   /ai/**         -> ai-service (localhost:8085)
  *   /notifications/** -> notification-service (localhost:8086)
  *   /analytics/**  -> analytics-service (localhost:8087)
+ *
+ * The API client aggregates all backend services and provides:
+ * - Typed methods for candidates, jobs, applications, AI matching, notifications, and analytics
+ * - Consistent error handling through the fetchApi wrapper
+ * - Exported types for TypeScript safety (Candidate, Job, Application, MatchResult, Notification, UserResponse, Role, EmploymentType, LoginResponse)
+ * - A aggregated `api` object for single-point imports
+ * - BASE_URL constant for gateway routing
  */
 
 type ApiErrorResponse = {
