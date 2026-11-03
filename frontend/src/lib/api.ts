@@ -47,6 +47,23 @@ export type { ApiErrorResponse }
 const BASE_URL = '/api'
 
 /**
+ * HireFlow Frontend API Client
+ *
+ * This module provides typed access to the backend services through the API gateway.
+ * All endpoints are routed through /api/... paths which the gateway forwards to the
+ * appropriate micro-service (auth on 8081, candidate on 8082, job on 8083, etc.).
+ *
+ * API base path: /api
+ *   /auth/**       -> auth-service (localhost:8081)
+ *   /candidates/** -> candidate-service (localhost:8082)
+ *   /jobs/**       -> job-service (localhost:8083)
+ *   /applications/** -> application-service (localhost:8084)
+ *   /ai/**         -> ai-service (localhost:8085)
+ *   /notifications/** -> notification-service (localhost:8086)
+ *   /analytics/**  -> analytics-service (localhost:8087)
+ */
+
+/**
  --- Candidate Service ---
  */
 
