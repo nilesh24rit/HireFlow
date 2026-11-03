@@ -46,7 +46,12 @@ const BASE_URL = '/api'
 /** API error type for use in components */
 export type { ApiErrorResponse }
 
-/** Root API types exported for convenience */
+/** Root API types exported for convenience.
+ * 
+ * These types are aggregated from all backend services and provided for
+ * frontend convenience imports. They correspond to the DTOs used by the
+ * API gateway services.
+ */
 export type {
   Candidate,
   CandidatePayload,
